@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Card, PageWrapper } from "@/components/Card";
 import { useQuery } from "@tanstack/react-query";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { CurriculumService } from "@/services/curriculumService";
 import { 
   Sparkles, 
@@ -43,7 +44,8 @@ function Dashboard() {
   });
 
   return (
-    <PageWrapper>
+    <ProtectedRoute allowedRoles={["admin", "educator", "student"]}>
+      <PageWrapper>
       {/* Welcome Banner */}
       <section className="glass-strong rounded-3xl p-8 md:p-12 mb-8 relative overflow-hidden bg-card border border-border shadow-sm">
         <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-primary/10 blur-3xl z-0" />
@@ -119,7 +121,7 @@ function Dashboard() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary border border-border text-xs text-primary font-mono mb-4">
               <GraduationCap className="w-3.5 h-3.5" />
-              {user?.role === "teacher" ? "TEACHER DASHBOARD" : "STUDENT DASHBOARD"}
+              {user?.role === "teacher" || user?.role === "educator" ? "TEACHER DASHBOARD" : "STUDENT DASHBOARD"}
             </div>
             <motion.h1 
               initial={{ opacity: 0, y: 15 }}
@@ -262,6 +264,7 @@ function Dashboard() {
         )}
       </section>
 
-    </PageWrapper>
+      </PageWrapper>
+    </ProtectedRoute>
   );
 }

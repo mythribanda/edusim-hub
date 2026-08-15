@@ -16,7 +16,7 @@ sys.path.append(os.path.join(root_dir, "app", "src", "modules"))
 sys.path.append(os.path.join(root_dir, "app", "src"))
 
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.src.modules.legacy_rag import load_all_pdfs
 from app.src.api.simulation_router import simulation_router
@@ -27,6 +27,7 @@ from app.src.api.persistence_router import persistence_router
 from app.src.modules.sandbox.controller import sandbox_router
 from app.src.api.scene_router import scene_router
 from app.src.api.auth import auth_router
+from app.src.api.users import users_router
 from app.src.api.curriculum_router import router as curriculum_router
 from app.src.api.institution_router import router as institution_router
 from app.src.api.attendance_router import router as attendance_router
@@ -98,11 +99,20 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# COOP middleware for Google OAuth popup
+@app.middleware("http")
+async def add_coop_header(request: Request, call_next):
+    response = await call_next(request)
+    if "/auth/google" in request.url.path:
+        response.headers["Cross-Origin-Opener-Policy"] = "unsafe-none"
+    return response
+
 # CORS — origins are restricted to the ALLOWED_ORIGINS env var (see top of file).
 # allow_credentials=True is safe here because origins are never wildcarded.
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -127,6 +137,11 @@ async def database_health():
 app.include_router(
     auth_router,
     prefix="/api/auth"
+)
+
+app.include_router(
+    users_router,
+    prefix="/api"
 )
 
 app.include_router(

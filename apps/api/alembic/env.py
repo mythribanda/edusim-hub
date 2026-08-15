@@ -10,13 +10,18 @@ from sqlalchemy import engine_from_config, pool
 from app.src.config.database import Base, DATABASE_URL
 from app.src.models import user as user_models  # noqa: F401
 from app.src.models import persistence as persistence_models  # noqa: F401
+from app.src.models import institution as institution_models  # noqa: F401
+from app.src.models import attendance as attendance_models  # noqa: F401
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL", DATABASE_URL))
+db_url = os.getenv("DATABASE_URL", DATABASE_URL)
+if db_url:
+    db_url = db_url.replace("%", "%%")
+config.set_main_option("sqlalchemy.url", db_url)
 
 target_metadata = Base.metadata
 

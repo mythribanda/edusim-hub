@@ -9,28 +9,44 @@ import {
   ChevronLeft,
   LogOut,
   Atom,
+  Plus,
+  LineChart,
+  BarChart3,
+  Users,
+  BookOpen,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/context/AuthContext";
 import { useAuthStore } from "@/store/useAuthStore";
 
 interface SidebarItem {
   to: string;
   label: string;
   icon: any;
+  roles: string[];
 }
 
-const items: SidebarItem[] = [
-  { to: "/dashboard", label: "Home", icon: Home },
-  { to: "/tutor", label: "Tutor", icon: GraduationCap },
-  { to: "/sandbox/default", label: "Sandbox", icon: Atom },
-  { to: "/profile", label: "Profile", icon: User },
+const navItems: SidebarItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: Home, roles: ["admin", "educator", "student"] },
+  { to: "/simulations", label: "Simulations", icon: Atom, roles: ["admin", "educator", "student"] },
+  { to: "/simulations/create", label: "Create Simulation", icon: Plus, roles: ["admin", "educator"] },
+  { to: "/tutor", label: "Tutor", icon: GraduationCap, roles: ["admin", "educator", "student"] },
+  { to: "/progress", label: "My Progress", icon: LineChart, roles: ["student"] },
+  { to: "/analytics", label: "Class Analytics", icon: BarChart3, roles: ["admin", "educator"] },
+  { to: "/admin/users", label: "User Management", icon: Users, roles: ["admin"] },
+  { to: "/resources", label: "Resources", icon: BookOpen, roles: ["admin", "educator", "student"] },
+  { to: "/profile", label: "Profile", icon: User, roles: ["admin", "educator", "student"] },
 ];
 
 export function Sidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { isCollapsed, toggleSidebar, isMobileOpen, setMobileOpen } = useSidebarStore();
   const { logout } = useAuthStore();
+  const { role } = useAuth();
+  
+  const userRole = role || "student";
+  const items = navItems.filter((item) => item.roles.includes(userRole));
 
   const sidebarVariants = {
     expanded: { width: 260 },

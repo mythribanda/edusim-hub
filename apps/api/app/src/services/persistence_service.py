@@ -44,7 +44,7 @@ def resolve_user_from_authorization(authorization: Optional[str], db: Session) -
                 name="Administrator",
                 email="admin@gmail.com",
                 password_hash="admin-bypass-placeholder",
-                role="teacher",
+                role="admin",
                 is_email_verified=True,
                 is_mobile_verified=True
             )

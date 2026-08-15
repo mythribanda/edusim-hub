@@ -1,0 +1,13 @@
+{
+  "name": "edusim-hub",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "cd apps/web && npm run dev",
+    "dev:backend": "cd apps/api && uvicorn main:app --reload",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\""
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
+  }
+}

@@ -5,12 +5,14 @@ import { motion } from "framer-motion";
 import { useRouterState, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/context/AuthContext";
 
 export function Navbar() {
   const { setMobileOpen } = useSidebarStore();
   const [isDesktop, setIsDesktop] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { user, role } = useAuth();
 
   useEffect(() => {
     const updateDesktop = () => setIsDesktop(window.innerWidth >= 1024);
@@ -58,6 +60,22 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-3 shrink-0 pointer-events-auto">
+            {user && (
+              <div className="flex items-center gap-2 mr-2">
+                <span className="text-sm font-semibold text-foreground">
+                  {user.name || user.email.split("@")[0]}
+                </span>
+                <span className={`text-[10px] uppercase font-mono font-extrabold px-2.5 py-1 rounded-full ${
+                  role === "admin"
+                    ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                    : role === "educator"
+                    ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                    : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                }`}>
+                  {role}
+                </span>
+              </div>
+            )}
             <button
               onClick={toggleTheme}
               className="w-11 h-11 rounded-xl flex items-center justify-center bg-card border border-border shadow-sm hover:bg-secondary/50 transition-all hover:scale-105 active:scale-95 cursor-pointer"
@@ -111,6 +129,22 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {user && (
+            <div className="flex items-center gap-1.5 mr-1">
+              <span className="text-xs font-semibold text-foreground hidden xs:inline-block">
+                {user.name || user.email.split("@")[0]}
+              </span>
+              <span className={`text-[9px] uppercase font-mono font-extrabold px-2 py-0.5 rounded-full ${
+                role === "admin"
+                  ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                  : role === "educator"
+                  ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                  : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+              }`}>
+                {role}
+              </span>
+            </div>
+          )}
           <button
             onClick={toggleTheme}
             className="w-10 h-10 rounded-full bg-card border border-border/85 flex items-center justify-center hover:bg-secondary/50 transition-all hover:scale-105 active:scale-95 cursor-pointer"

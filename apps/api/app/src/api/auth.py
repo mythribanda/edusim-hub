@@ -15,7 +15,7 @@ from google.auth.transport import requests as google_requests
 
 from app.src.config.database import get_db
 from app.src.services.persistence_service import mark_user_active, record_login_event, record_refresh_token, record_user_session
-from app.src.models.user import User
+from app.src.models.user import User, UserRole
 from app.src.utils.auth import (
     hash_password,
     verify_password,
@@ -40,7 +40,7 @@ class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=72)
-    role: str = Field("student", pattern="^(student|teacher)$")
+    role: UserRole = Field(UserRole.STUDENT)
     mobile_number: Optional[str] = None
 
     @model_validator(mode="before")
@@ -164,6 +164,55 @@ async def get_current_user(
     return user
 
 
+async def get_current_role(
+    authorization: Optional[str] = Header(None)
+) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authentication credentials"
+        )
+    
+    token = authorization.split(" ")[1]
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is expired or invalid"
+        )
+    
+    role = payload.get("role")
+    if not role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token payload contains no role"
+        )
+    
+    return role
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privilege required"
+        )
+    return user
+
+
+def require_educator(user: User = Depends(get_current_user)) -> User:
+    if user.role not in ["admin", "educator"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Educator privilege required"
+        )
+    return user
+
+
+def require_student(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
 # --- Routes ---
 
 @auth_router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
@@ -259,7 +308,7 @@ def login(request: LoginRequest, http_request: Request, db: Session = Depends(ge
         
     # Generate tokens
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id), "role": user.role})
 
     record_login_event(
         db,
@@ -370,7 +419,7 @@ def google_login(request: GoogleLoginRequest, http_request: Request, db: Session
 
     # 4. Generate JWT tokens
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id), "role": user.role})
 
     # 5. Record session & login events
     record_login_event(
@@ -441,7 +490,7 @@ def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
         
     # Re-issue both tokens
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
-    new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    new_refresh_token = create_refresh_token(data={"sub": str(user.id), "role": user.role})
     
     return {
         "access_token": access_token,
@@ -649,7 +698,7 @@ def verify_otp(request: VerifyOtpRequest, db: Session = Depends(get_db)):
     logger.info("OTP verified — mobile verified, session created (user_id=%s)", user.id)
     
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id), "role": user.role})
     record_user_session(db, user=user, session_key=refresh_token, metadata={"source": "otp"})
     record_refresh_token(db, user=user, token_jti=refresh_token, metadata={"source": "otp"})
     db.commit()

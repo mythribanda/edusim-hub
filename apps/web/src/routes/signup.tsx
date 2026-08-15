@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useAuth } from "@/context/AuthContext";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -33,6 +34,7 @@ type FieldName = "name" | "email" | "mobileNumber" | "password" | "confirmPasswo
 function Signup() {
   const navigate = useNavigate();
   const { register, loginWithGoogle, isLoading } = useAuthStore();
+  const { fetchUser } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -76,6 +78,7 @@ function Signup() {
   const handleGoogleSignInSuccess = async (credential: string) => {
     const success = await loginWithGoogle(credential);
     if (success) {
+      await fetchUser();
       toast.success("Welcome to EduSim!");
       navigate({ to: "/dashboard" });
     }

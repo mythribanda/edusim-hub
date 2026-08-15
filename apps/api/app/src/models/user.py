@@ -1,9 +1,16 @@
+import enum
 import uuid
 
-from sqlalchemy import Column, DateTime, Integer, String, Boolean, UUID, Text, Index, ForeignKey
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, UUID, Text, Index, ForeignKey, Enum as SQLEnum
 from sqlalchemy.sql import func
 
 from app.src.config.database import Base
+
+
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    EDUCATOR = "educator"
+    STUDENT = "student"
 
 
 class User(Base):
@@ -13,7 +20,7 @@ class User(Base):
     name = Column(String(100))
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    role = Column(String(20), default="student")
+    role = Column(SQLEnum(UserRole, name="user_role", native_enum=False), default=UserRole.STUDENT, server_default="student", nullable=False)
     age_group = Column(String(20), nullable=True, default="teen")  # kid, teen, uni
     institution_id = Column(UUID(as_uuid=True), ForeignKey("institutions.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

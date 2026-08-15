@@ -257,4 +257,8 @@ class PersistenceRepository:
         ]
 
     def list_roles(self):
-        return [{"name": "student", "is_active": True}, {"name": "teacher", "is_active": True}]
+        return [
+            {"name": "student", "is_active": True},
+            {"name": "educator", "is_active": True},
+            {"name": "admin", "is_active": True}
+        ]

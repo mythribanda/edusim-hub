@@ -95,6 +95,8 @@ function NotFoundComponent() {
   );
 }
 
+import { AuthProvider } from "@/context/AuthContext";
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -111,7 +113,9 @@ export const Route = createRootRoute({
   shellComponent: RootShell,
   component: () => (
     <QueryClientProvider client={queryClient}>
-      <RootComponent />
+      <AuthProvider>
+        <RootComponent />
+      </AuthProvider>
     </QueryClientProvider>
   ),
   notFoundComponent: NotFoundComponent,

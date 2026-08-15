@@ -8,7 +8,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "student" | "faculty" | "admin" | "parent" | "teacher";
+  role: "student" | "faculty" | "admin" | "parent" | "teacher" | "educator";
   age_group: "kid" | "teen" | "uni";
   institution_id?: string;
   auth_provider?: string;

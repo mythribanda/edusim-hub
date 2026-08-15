@@ -11,15 +11,22 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient<Database>(
+const supabaseClient = createClient<Database>(
   supabaseUrl ?? 'https://placeholder.supabase.co',
   supabaseAnonKey ?? 'placeholder-key',
   {
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
   }
-) as any;
+);
+
+export const supabase = {
+  from: supabaseClient.from.bind(supabaseClient),
+  rpc: supabaseClient.rpc.bind(supabaseClient),
+  storage: supabaseClient.storage,
+} as any;
 
 export type { Database };
