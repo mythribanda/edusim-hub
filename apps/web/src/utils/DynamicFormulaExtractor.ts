@@ -103,6 +103,66 @@ const OFFLINE_FORMULA_BACKUP: Record<string, {
       { symbol: "v", label: "Velocity (v)", unit: "m/s", min: 1, max: 50, step: 1, defaultValue: 5 }
     ],
     resultSymbol: "KE"
+  },
+  "V=U+A*T": {
+    title: "Kinematics: Velocity Equation",
+    description: "Calculates the final velocity of an object given starting velocity, constant acceleration, and duration.",
+    anatomy: [
+      { symbol: "v", meaning: "Final Velocity", unit: "m/s" },
+      { symbol: "u", meaning: "Initial Velocity", unit: "m/s" },
+      { symbol: "a", meaning: "Acceleration", unit: "m/s²" },
+      { symbol: "t", meaning: "Time", unit: "s" }
+    ],
+    controls: [
+      { symbol: "u", label: "Initial Velocity", unit: "m/s", min: 0, max: 20, step: 1, defaultValue: 5 },
+      { symbol: "a", label: "Acceleration", unit: "m/s²", min: 0, max: 20, step: 0.1, defaultValue: 9.8 },
+      { symbol: "t", label: "Time", unit: "s", min: 0, max: 10, step: 0.5, defaultValue: 4 }
+    ],
+    resultSymbol: "v"
+  },
+  "AREA=PI*R^2": {
+    title: "Area of a Circle",
+    description: "The space enclosed by a circle of a given radius.",
+    anatomy: [
+      { symbol: "Area", meaning: "Area", unit: "m²" },
+      { symbol: "r", meaning: "Radius", unit: "m" }
+    ],
+    controls: [
+      { symbol: "r", label: "Radius (r)", unit: "m", min: 0, max: 50, step: 0.5, defaultValue: 5 }
+    ],
+    resultSymbol: "Area"
+  },
+  "SI=(P*R*T)/100": {
+    title: "Simple Interest Explorer",
+    description: "A quick method of calculating the interest charge on a loan or principal sum.",
+    anatomy: [
+      { symbol: "SI", meaning: "Simple Interest", unit: "$" },
+      { symbol: "P", meaning: "Principal Amount", unit: "$" },
+      { symbol: "R", meaning: "Rate of Interest", unit: "%/yr" },
+      { symbol: "T", meaning: "Time Period", unit: "years" }
+    ],
+    controls: [
+      { symbol: "P", label: "Principal (P)", unit: "$", min: 100, max: 10000, step: 100, defaultValue: 1000 },
+      { symbol: "R", label: "Rate (R)", unit: "%/yr", min: 0.5, max: 15, step: 0.5, defaultValue: 5 },
+      { symbol: "T", label: "Time (T)", unit: "years", min: 1, max: 20, step: 1, defaultValue: 3 }
+    ],
+    resultSymbol: "SI"
+  },
+  "PE=M*G*H": {
+    title: "Potential Energy Laboratory",
+    description: "The energy stored in an object as a result of its vertical position or height.",
+    anatomy: [
+      { symbol: "PE", meaning: "Potential Energy", unit: "J" },
+      { symbol: "m", meaning: "Mass", unit: "kg" },
+      { symbol: "g", meaning: "Gravitational Acceleration", unit: "m/s²" },
+      { symbol: "h", meaning: "Height", unit: "m" }
+    ],
+    controls: [
+      { symbol: "m", label: "Mass (m)", unit: "kg", min: 1, max: 100, step: 1, defaultValue: 5 },
+      { symbol: "g", label: "Gravity (g)", unit: "m/s²", min: 1, max: 30, step: 0.1, defaultValue: 9.8 },
+      { symbol: "h", label: "Height (h)", unit: "m", min: 0, max: 200, step: 1, defaultValue: 10 }
+    ],
+    resultSymbol: "PE"
   }
 };
 

@@ -21,7 +21,7 @@ import {
   Award,
   Database
 } from 'lucide-react';
-import { useAuth } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useNavigate, useLocation } from '@tanstack/react-router';
 import { toast } from '@/institutional/hooks-ssh/use-toast';
 import { cn } from '@/lib/utils';
@@ -90,7 +90,7 @@ const roleConfig = {
 };
 
 export function DashboardNavbar({ role }: DashboardNavbarProps) {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const config = roleConfig[role];

@@ -13,12 +13,13 @@ export function RoleLayout({ children }: { children?: React.ReactNode }) {
   
   switch (user.role) {
     case "student":
-      if (user.age_group === "kid") return <><KidNavbar />{children}</>;
-      if (user.age_group === "teen") return <><TeenNavbar />{children}</>;
+      if (user.age_tier === "primary") return <><KidNavbar />{children}</>;
+      if (user.age_tier === "middle" || user.age_tier === "high_school") return <><TeenNavbar />{children}</>;
       return <><UniNavbar />{children}</>;
-    case "faculty":
+    case "teacher":
       return <FacultyLayout>{children}</FacultyLayout>;
     case "admin":
+    case "superadmin":
       return <AdminLayout>{children}</AdminLayout>;
     case "parent":
       return <ParentLayout>{children}</ParentLayout>;

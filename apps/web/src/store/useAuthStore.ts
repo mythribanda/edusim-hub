@@ -1,23 +1,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { getApiUrl } from "@/config/api";
-import { fetchJsonWithRetry } from "@/services/apiClient";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: "student" | "faculty" | "admin" | "parent" | "teacher" | "educator";
-  age_group: "kid" | "teen" | "uni";
-  institution_id?: string;
-  auth_provider?: string;
-  avatar?: string;
-  mobile_number?: string;
-  is_email_verified: boolean;
-  is_mobile_verified: boolean;
-  created_at?: string;
-}
+import { User, UserRole, AgeTier } from "@edusim/shared-types";
 
 interface AuthState {
   user: User | null;
@@ -30,7 +15,7 @@ interface AuthState {
   // Actions
   login: (credentials: { email: string; password: string }) => Promise<boolean>;
   loginWithGoogle: (idToken: string) => Promise<boolean>;
-  register: (data: { name: string; email: string; password: string; role?: string; mobile?: string; mobile_number?: string }) => Promise<boolean>;
+  register: (data: { name: string; email: string; password: string; role?: UserRole; age_tier?: AgeTier }) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => Promise<boolean>;
   
@@ -47,22 +32,13 @@ interface AuthState {
 
 const authStorage =
   typeof window !== "undefined"
-    ? createJSONStorage<AuthState>(() => localStorage)
+    ? createJSONStorage<any>(() => localStorage)
     : undefined;
 
 const TOKEN_STORAGE_KEY = "token";
 
-const isUnauthorizedError = (error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  const normalized = message.toLowerCase();
-  return normalized.includes("401") || normalized.includes("unauthorized") || normalized.includes("token");
-};
-
 const syncLegacyToken = (token: string | null) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
+  if (typeof window === "undefined") return;
   if (token) {
     window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
   } else {
@@ -86,158 +62,128 @@ export const useAuthStore = create<AuthState>()(
 
       login: async ({ email, password }) => {
         set({ isLoading: true });
-        
         try {
-          const response = await fetchJsonWithRetry<any>(getApiUrl("/api/auth/login"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
           });
 
-          const { access_token, refresh_token, user } = response;
+          if (error) throw error;
 
-          let bootstrapUser = user as User;
-          try {
-            bootstrapUser = await fetchJsonWithRetry<User>(getApiUrl("/api/auth/me"), {
-              headers: { Authorization: `Bearer ${access_token}` },
-              scope: "authBootstrap",
-            });
-          } catch (meError) {
-            if (isUnauthorizedError(meError)) {
-              set({
-                user: null,
-                token: null,
-                refreshToken: null,
-                isAuthenticated: false,
-                isLoading: false,
-              });
-              syncLegacyToken(null);
-              toast.error("Session is invalid. Please sign in again.");
-              return false;
-            }
-          }
+          const session = data.session;
+          if (!session) throw new Error("No session returned");
+
+          // Retrieve user profile details from public.users table
+          const { data: profile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+
+          const userObj: User = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profile?.name || session.user.user_metadata?.name || "",
+            role: (profile?.role || session.user.user_metadata?.role || "student") as UserRole,
+            age_tier: (profile?.age_tier || session.user.user_metadata?.age_tier || "primary") as AgeTier,
+            class_id: profile?.class_id || null,
+            institution_id: profile?.institution_id || null,
+            board: profile?.board || null,
+            created_at: profile?.created_at || session.user.created_at,
+          };
 
           set({
-            user: bootstrapUser,
-            token: access_token,
-            refreshToken: refresh_token,
+            user: userObj,
+            token: session.access_token,
+            refreshToken: session.refresh_token,
             isAuthenticated: true,
             isLoading: false,
           });
-          syncLegacyToken(access_token);
+          syncLegacyToken(session.access_token);
+          toast.success("Logged in successfully");
           return true;
         } catch (error: any) {
           set({ isLoading: false });
-          let msg = error.message || "Unable to login. Please try again";
-          const lowerMsg = msg.toLowerCase();
-          if (lowerMsg.includes("invalid") || lowerMsg.includes("wrong") || lowerMsg.includes("credential")) {
-            msg = "Invalid email or password";
-          } else if (lowerMsg.includes("not found") || lowerMsg.includes("does not exist") || lowerMsg.includes("no account")) {
-            msg = "Account does not exist";
-          } else if (lowerMsg.includes("disabled") || lowerMsg.includes("banned") || lowerMsg.includes("suspended")) {
-            msg = "Account has been disabled";
-          } else if (lowerMsg.includes("too many") || lowerMsg.includes("attempt") || lowerMsg.includes("rate limit") || lowerMsg.includes("locked")) {
-            msg = "Account locked due to multiple failed attempts";
-          } else if (lowerMsg.includes("fetch") || lowerMsg.includes("network")) {
-            msg = "Network error. Check your connection";
-          } else if (!error.message || lowerMsg.includes("internal server") || lowerMsg.includes("http 5")) {
-            msg = "Unable to login. Please try again";
-          }
-          toast.error(msg);
+          toast.error(error.message || "Invalid email or password");
           return false;
         }
       },
 
       loginWithGoogle: async (idToken) => {
         set({ isLoading: true });
-        
         try {
-          const response = await fetchJsonWithRetry<any>(getApiUrl("/api/auth/google"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id_token: idToken }),
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: idToken,
           });
 
-          const { access_token, refresh_token, user } = response;
+          if (error) throw error;
 
-          let bootstrapUser = user as User;
-          try {
-            bootstrapUser = await fetchJsonWithRetry<User>(getApiUrl("/api/auth/me"), {
-              headers: { Authorization: `Bearer ${access_token}` },
-              scope: "authBootstrap",
-            });
-          } catch (meError) {
-            if (isUnauthorizedError(meError)) {
-              set({
-                user: null,
-                token: null,
-                refreshToken: null,
-                isAuthenticated: false,
-                isLoading: false,
-              });
-              syncLegacyToken(null);
-              toast.error("Session is invalid. Please sign in again.");
-              return false;
-            }
-          }
+          const session = data.session;
+          if (!session) throw new Error("No session returned");
+
+          const { data: profile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+
+          const userObj: User = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profile?.name || session.user.user_metadata?.name || "",
+            role: (profile?.role || session.user.user_metadata?.role || "student") as UserRole,
+            age_tier: (profile?.age_tier || session.user.user_metadata?.age_tier || "primary") as AgeTier,
+            class_id: profile?.class_id || null,
+            institution_id: profile?.institution_id || null,
+            board: profile?.board || null,
+            created_at: profile?.created_at || session.user.created_at,
+          };
 
           set({
-            user: bootstrapUser,
-            token: access_token,
-            refreshToken: refresh_token,
+            user: userObj,
+            token: session.access_token,
+            refreshToken: session.refresh_token,
             isAuthenticated: true,
             isLoading: false,
           });
-          syncLegacyToken(access_token);
+          syncLegacyToken(session.access_token);
           return true;
         } catch (error: any) {
           set({ isLoading: false });
-          let msg = error.message || "Unable to sign in with Google. Please try again";
-          toast.error(msg);
+          toast.error(error.message || "Failed to sign in with Google");
           return false;
         }
       },
 
-      register: async (registerData) => {
+      register: async ({ name, email, password, role, age_tier }) => {
         set({ isLoading: true });
-        const payload = {
-          ...registerData,
-          role: registerData.role ?? "student",
-          mobile_number: registerData.mobile_number ?? registerData.mobile,
-        };
-
         try {
-          console.log("register request", payload);
-
-          const response = await fetchJsonWithRetry<any>(getApiUrl("/api/auth/register"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                name,
+                role: role || "student",
+                age_tier: age_tier || "primary",
+              },
+            },
           });
 
-          console.log("register response", response);
+          if (error) throw error;
+          toast.success("Registration successful! Please check your email to verify.");
           return true;
         } catch (error: any) {
-          console.error("register failed", error);
-          let errMsg = error.message || "Something went wrong. Please try again";
-          const lowerMsg = errMsg.toLowerCase();
-          if (lowerMsg.includes("email") && (lowerMsg.includes("registered") || lowerMsg.includes("exist") || lowerMsg.includes("taken"))) {
-            errMsg = "Email already registered";
-          } else if (lowerMsg.includes("username") && (lowerMsg.includes("exist") || lowerMsg.includes("taken"))) {
-            errMsg = "Username already taken";
-          } else if (lowerMsg.includes("fetch") || lowerMsg.includes("network")) {
-            errMsg = "Network error. Check your connection";
-          } else if (!error.message || lowerMsg.includes("internal server") || lowerMsg.includes("http 5")) {
-            errMsg = "Something went wrong. Please try again";
-          }
-          toast.error(errMsg);
+          toast.error(error.message || "Registration failed. Please try again");
           return false;
         } finally {
           set({ isLoading: false });
         }
       },
 
-      logout: () => {
+      logout: async () => {
+        await supabase.auth.signOut();
         set({
           user: null,
           token: null,
@@ -249,67 +195,43 @@ export const useAuthStore = create<AuthState>()(
       },
 
       checkAuth: async () => {
-        let token = get().token;
-        if (!token && typeof window !== "undefined") {
-          token = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-          if (token) {
-            set({ token });
-          }
-        }
-
-        if (!token) {
-          set({ isAuthenticated: false, user: null, refreshToken: null });
-          syncLegacyToken(null);
-          return false;
-        }
-
         try {
-          const user = await fetchJsonWithRetry<User>(getApiUrl("/api/auth/me"), {
-            headers: { Authorization: `Bearer ${token}` },
-            scope: "authCheck",
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error || !session) {
+            set({ isAuthenticated: false, user: null, token: null, refreshToken: null });
+            syncLegacyToken(null);
+            return false;
+          }
+
+          const { data: profile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+
+          const userObj: User = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profile?.name || session.user.user_metadata?.name || "",
+            role: (profile?.role || session.user.user_metadata?.role || "student") as UserRole,
+            age_tier: (profile?.age_tier || session.user.user_metadata?.age_tier || "primary") as AgeTier,
+            class_id: profile?.class_id || null,
+            institution_id: profile?.institution_id || null,
+            board: profile?.board || null,
+            created_at: profile?.created_at || session.user.created_at,
+          };
+
+          set({
+            user: userObj,
+            token: session.access_token,
+            refreshToken: session.refresh_token,
+            isAuthenticated: true,
           });
-
-          set({ user, isAuthenticated: true });
+          syncLegacyToken(session.access_token);
           return true;
-        } catch (error: any) {
-          const rToken = get().refreshToken;
-          if (rToken) {
-            try {
-              const response = await fetchJsonWithRetry<any>(getApiUrl("/api/auth/refresh"), {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refresh_token: rToken }),
-                scope: "authRefresh",
-              });
-
-              const { access_token, refresh_token } = response;
-
-              const refreshedUser = await fetchJsonWithRetry<User>(getApiUrl("/api/auth/me"), {
-                headers: { Authorization: `Bearer ${access_token}` },
-                scope: "authRefreshMe",
-              });
-
-              set({
-                user: refreshedUser,
-                token: access_token,
-                refreshToken: refresh_token,
-                isAuthenticated: true,
-              });
-              syncLegacyToken(access_token);
-              return true;
-            } catch (refreshErr) {
-              get().logout();
-              if (isUnauthorizedError(refreshErr)) {
-                toast.error("Your session has expired. Please login again");
-              }
-              return false;
-            }
-          }
-
-          get().logout();
-          if (isUnauthorizedError(error)) {
-            toast.error("Your session has expired. Please login again");
-          }
+        } catch (e) {
+          set({ isAuthenticated: false, user: null, token: null, refreshToken: null });
+          syncLegacyToken(null);
           return false;
         }
       },
@@ -317,11 +239,9 @@ export const useAuthStore = create<AuthState>()(
       sendOtp: async (countryCode, mobileNumber) => {
         set({ isLoading: true });
         try {
-          await fetchJsonWithRetry<any>(getApiUrl("/api/auth/send-otp"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ country_code: countryCode, mobile_number: mobileNumber }),
-          });
+          const phone = `${countryCode}${mobileNumber}`;
+          const { error } = await supabase.auth.signInWithOtp({ phone });
+          if (error) throw error;
           set({ isLoading: false });
           return true;
         } catch (error: any) {
@@ -334,22 +254,42 @@ export const useAuthStore = create<AuthState>()(
       verifyOtp: async (mobileNumber, otpCode) => {
         set({ isLoading: true });
         try {
-          const response = await fetchJsonWithRetry<any>(getApiUrl("/api/auth/verify-otp"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mobile_number: mobileNumber, otp_code: otpCode }),
+          const { data, error } = await supabase.auth.verifyOtp({
+            phone: mobileNumber,
+            token: otpCode,
+            type: "sms",
           });
+          if (error) throw error;
+          
+          const session = data.session;
+          if (!session) throw new Error("No session returned");
 
-          const { access_token, refresh_token, user } = response;
+          const { data: profile } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", session.user.id)
+            .single();
+
+          const userObj: User = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: profile?.name || session.user.user_metadata?.name || "",
+            role: (profile?.role || session.user.user_metadata?.role || "student") as UserRole,
+            age_tier: (profile?.age_tier || session.user.user_metadata?.age_tier || "primary") as AgeTier,
+            class_id: profile?.class_id || null,
+            institution_id: profile?.institution_id || null,
+            board: profile?.board || null,
+            created_at: profile?.created_at || session.user.created_at,
+          };
 
           set({
-            user,
-            token: access_token,
-            refreshToken: refresh_token,
+            user: userObj,
+            token: session.access_token,
+            refreshToken: session.refresh_token,
             isAuthenticated: true,
             isLoading: false,
           });
-          syncLegacyToken(access_token);
+          syncLegacyToken(session.access_token);
           return true;
         } catch (error: any) {
           set({ isLoading: false });
@@ -361,25 +301,16 @@ export const useAuthStore = create<AuthState>()(
       forgotPassword: async (email) => {
         set({ isLoading: true });
         try {
-          await fetchJsonWithRetry<any>(getApiUrl("/api/auth/forgot-password"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email }),
+          const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/login?type=recovery`,
           });
+          if (error) throw error;
           set({ isLoading: false });
+          toast.success("Password reset link sent to your email!");
           return true;
         } catch (error: any) {
           set({ isLoading: false });
-          let errMsg = error.message || "Unable to send reset link";
-          const lowerMsg = errMsg.toLowerCase();
-          if (lowerMsg.includes("not found") || lowerMsg.includes("no account") || lowerMsg.includes("does not exist")) {
-            errMsg = "No account found with this email";
-          } else if (lowerMsg.includes("too many") || lowerMsg.includes("rate limit") || lowerMsg.includes("429")) {
-            errMsg = "Too many requests. Please try again later";
-          } else if (!error.message || lowerMsg.includes("internal server") || lowerMsg.includes("http 5")) {
-            errMsg = "Unable to send reset link";
-          }
-          toast.error(errMsg);
+          toast.error(error.message || "Unable to send reset link");
           return false;
         }
       },
@@ -387,44 +318,20 @@ export const useAuthStore = create<AuthState>()(
       resetPassword: async (token, newPassword) => {
         set({ isLoading: true });
         try {
-          await fetchJsonWithRetry<any>(getApiUrl("/api/auth/reset-password"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token, new_password: newPassword }),
-          });
+          const { error } = await supabase.auth.updateUser({ password: newPassword });
+          if (error) throw error;
           set({ isLoading: false });
+          toast.success("Password reset successful!");
           return true;
         } catch (error: any) {
           set({ isLoading: false });
-          let errMsg = error.message || "Unable to reset password";
-          const lowerMsg = errMsg.toLowerCase();
-          if (lowerMsg.includes("expired")) {
-            errMsg = "Reset link has expired";
-          } else if (lowerMsg.includes("invalid") || lowerMsg.includes("token")) {
-            errMsg = "Invalid reset link";
-          } else if (!error.message || lowerMsg.includes("internal server") || lowerMsg.includes("http 5")) {
-            errMsg = "Unable to reset password";
-          }
-          toast.error(errMsg);
+          toast.error(error.message || "Unable to reset password");
           return false;
         }
       },
 
       verifyEmail: async (token) => {
-        set({ isLoading: true });
-        try {
-          await fetchJsonWithRetry<any>(getApiUrl("/api/auth/verify-email"), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
-          });
-          set({ isLoading: false });
-          return true;
-        } catch (error: any) {
-          set({ isLoading: false });
-          toast.error(error.message || "Verification failed or token expired");
-          return false;
-        }
+        return true;
       },
     }),
     {
@@ -437,26 +344,6 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
       }),
       version: 2,
-      migrate: (persistedState: any) => {
-        if (!persistedState) {
-          return persistedState;
-        }
-
-        return {
-          ...persistedState,
-          token: persistedState.token ?? persistedState.accessToken ?? null,
-          accessToken: undefined,
-        };
-      },
-      onRehydrateStorage: () => (state) => {
-        syncLegacyToken(state?.token ?? null);
-        if (state) {
-          state.setHasHydrated(true);
-          return;
-        }
-
-        useAuthStore.setState({ hasHydrated: true });
-      },
     }
   )
 );

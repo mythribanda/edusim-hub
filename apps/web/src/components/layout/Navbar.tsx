@@ -5,14 +5,15 @@ import { motion } from "framer-motion";
 import { useRouterState, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useTheme } from "@/hooks/useTheme";
-import { useAuth } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export function Navbar() {
   const { setMobileOpen } = useSidebarStore();
   const [isDesktop, setIsDesktop] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { user, role } = useAuth();
+  const { user } = useAuthStore();
+  const role = user?.role;
 
   useEffect(() => {
     const updateDesktop = () => setIsDesktop(window.innerWidth >= 1024);
@@ -63,12 +64,12 @@ export function Navbar() {
             {user && (
               <div className="flex items-center gap-2 mr-2">
                 <span className="text-sm font-semibold text-foreground">
-                  {user.name || user.email.split("@")[0]}
+                  {user.name || (user.email ? user.email.split("@")[0] : "User")}
                 </span>
                 <span className={`text-[10px] uppercase font-mono font-extrabold px-2.5 py-1 rounded-full ${
                   role === "admin"
                     ? "bg-red-500/10 text-red-500 border border-red-500/20"
-                    : role === "educator"
+                    : role === "teacher" || role === "faculty" || role === "educator"
                     ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
                     : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
                 }`}>
@@ -132,12 +133,12 @@ export function Navbar() {
           {user && (
             <div className="flex items-center gap-1.5 mr-1">
               <span className="text-xs font-semibold text-foreground hidden xs:inline-block">
-                {user.name || user.email.split("@")[0]}
+                {user.name || (user.email ? user.email.split("@")[0] : "User")}
               </span>
               <span className={`text-[9px] uppercase font-mono font-extrabold px-2 py-0.5 rounded-full ${
                 role === "admin"
                   ? "bg-red-500/10 text-red-500 border border-red-500/20"
-                  : role === "educator"
+                  : role === "teacher" || role === "faculty" || role === "educator"
                   ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
                   : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
               }`}>

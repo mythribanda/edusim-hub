@@ -18,11 +18,11 @@ import {
   Save,
   Calendar
 } from 'lucide-react';
-import { useAuth } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/institutional/hooks-ssh/use-toast';
 
 export const FacultyProfile = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   
   const [profileData, setProfileData] = useState({
     name: user?.name || 'Prof. Anjali Sharma',

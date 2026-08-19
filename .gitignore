@@ -47,6 +47,7 @@ build/
 node_modules/
 .vite/
 .turbo/
+.next/
 .parcel-cache/
 .output/
 package-lock.json

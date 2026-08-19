@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 
 import { UtilityBar } from '@/institutional/components/shared/UtilityBar';
-import { useAuth } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from '@/institutional/hooks-ssh/use-toast';
 import { AcademicPolicy } from "@/institutional/components/dashboard/government/AcademicPolicy";
@@ -53,7 +53,7 @@ import { PortfolioStandards } from "@/institutional/components/dashboard/governm
 import { AchievementRecognition } from "@/institutional/components/dashboard/government/AchievementRecognition";
 
 const GovernmentDashboard = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');

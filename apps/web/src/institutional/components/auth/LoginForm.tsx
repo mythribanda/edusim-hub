@@ -5,8 +5,10 @@ import { Input } from '@/institutional/components/ui-ssh/input-ssh';
 import { Label } from '@/institutional/components/ui-ssh/label-ssh';
 import { Alert, AlertDescription } from '@/institutional/components/ui-ssh/alert-ssh';
 import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { useAuth, UserRole } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import { motion } from 'framer-motion';
+
+export type UserRole = 'student' | 'faculty' | 'admin' | 'government' | 'parent';
 
 interface LoginFormProps {
   role: UserRole;
@@ -43,7 +45,7 @@ const LoginForm = ({ role, accentColor, redirectTo }: LoginFormProps) => {
   const [error, setError]       = useState('');
   const [validationErrors, setValidationErrors] = useState<{ email?: string; password?: string }>({});
 
-  const { login, isLoading } = useAuth();
+  const { login, isLoading } = useAuthStore();
   const navigate = useNavigate();
 
   const validateForm = () => {
@@ -72,7 +74,7 @@ const LoginForm = ({ role, accentColor, redirectTo }: LoginFormProps) => {
     if (!validateForm()) return;
 
     try {
-      const success = await login(email, password, role);
+      const success = await login({ email, password });
 
       if (success) {
         navigate({ to: ('/institutional' + redirectTo) as any });

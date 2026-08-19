@@ -1,6 +1,5 @@
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { useState, useEffect, Component, type ReactNode } from 'react'
-import { AuthProvider } from '@/institutional/contexts/AuthContext'
 
 // Direct imports — no lazy
 import LoginSelector from '@/institutional/pages/LoginSelector'
@@ -22,11 +21,9 @@ function RouteComponent() {
   const normalized = path.replace(/^\/+|\/+$/g, '')
 
   return (
-    <AuthProvider>
-      <ErrorBoundary>
-        <InnerRoute path={normalized} />
-      </ErrorBoundary>
-    </AuthProvider>
+    <ErrorBoundary>
+      <InnerRoute path={normalized} />
+    </ErrorBoundary>
   )
 }
 

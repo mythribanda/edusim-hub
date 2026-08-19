@@ -1,0 +1,79 @@
+{
+  "$schema": "../schema/simulation-config.schema.json",
+  "_meta": {
+    "id": "farthest-planet-from-rocket",
+    "title": "Farthest Planet from Rocket",
+    "subject": "Space Science / Distance",
+    "tier_min": "middle",
+    "description": "A rocket launches from a fixed position. The student identifies which planet in the solar system is the farthest away — a conceptual grasp of scale in space."
+  },
+  "background": "radial-gradient(ellipse at 50% 50%, #0D1B3E 0%, #020B18 100%)",
+  "question": {
+    "text": "The rocket needs to travel to the most distant planet. Which one is farthest away from the rocket?",
+    "hint": "Think about which planet in the solar system is the most distant."
+  },
+  "seeker": {
+    "assetSlug": "rocket",
+    "label": "Rocket",
+    "x": 0.12,
+    "y": 0.80
+  },
+  "objects": [
+    {
+      "assetSlug": "planet-earth",
+      "label": "Earth",
+      "x": 0.28,
+      "y": 0.35,
+      "properties": { "distanceFromSun_AU": 1.0, "name": "Earth" },
+      "draggable": false
+    },
+    {
+      "assetSlug": "planet-ringed",
+      "label": "Saturn",
+      "x": 0.60,
+      "y": 0.25,
+      "properties": { "distanceFromSun_AU": 9.5, "name": "Saturn" },
+      "draggable": false
+    },
+    {
+      "assetSlug": "planet-earth",
+      "label": "Mars",
+      "x": 0.42,
+      "y": 0.50,
+      "properties": { "distanceFromSun_AU": 1.52, "name": "Mars" },
+      "draggable": false
+    },
+    {
+      "assetSlug": "planet-ringed",
+      "label": "Neptune",
+      "x": 0.88,
+      "y": 0.20,
+      "properties": { "distanceFromSun_AU": 30.07, "name": "Neptune" },
+      "draggable": false
+    }
+  ],
+  "correct_rule": { "type": "farthest" },
+  "tier_rules": {
+    "primary": {
+      "questionOverride": "Which planet is the farthest from the rocket?",
+      "showDistanceLabels": true,
+      "maxAttempts": 3,
+      "hint": "The farthest planet is also the coldest and darkest!"
+    },
+    "middle": {
+      "showDistanceLabels": true,
+      "maxAttempts": 2,
+      "hint": "Which planet takes the longest to orbit the Sun?"
+    },
+    "high_school": {
+      "questionOverride": "Using the rocket's normalised canvas position as a proxy for the Sun's position, select the planet with the maximum Euclidean distance.",
+      "showDistanceLabels": false,
+      "maxAttempts": 2
+    },
+    "university": {
+      "questionOverride": "Rank the four planets by their semi-major axis in AU and identify the argmax. Corroborate with the canvas distance metric as a sanity check.",
+      "showDistanceLabels": false,
+      "maxAttempts": 1
+    }
+  }
+}

@@ -1,3 +1,4 @@
+// Supabase is used for DATABASE ONLY. All auth goes through FastAPI JWT via useAuthStore.
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 
@@ -13,14 +14,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabaseClient = createClient<Database>(
   supabaseUrl ?? 'https://placeholder.supabase.co',
-  supabaseAnonKey ?? 'placeholder-key',
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  }
+  supabaseAnonKey ?? 'placeholder-key'
 );
 
 export const supabase = {

@@ -2,12 +2,20 @@
   "name": "edusim-hub",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@11.12.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
   "scripts": {
-    "dev:frontend": "cd apps/web && npm run dev",
-    "dev:backend": "cd apps/api && uvicorn main:app --reload",
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\""
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
-    "concurrently": "^10.0.4"
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.14"
   }
 }

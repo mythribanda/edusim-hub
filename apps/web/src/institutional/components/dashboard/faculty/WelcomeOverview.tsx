@@ -11,10 +11,10 @@ import {
   AlertTriangle,
   TrendingUp
 } from 'lucide-react';
-import { useAuth } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export const WelcomeOverview = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
 
   const summaryStats = [
     { title: 'Classes Assigned', value: '3', subtitle: 'subjects', icon: BookOpen, color: 'text-faculty-primary' },

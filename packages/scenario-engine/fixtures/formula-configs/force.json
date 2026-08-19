@@ -1,0 +1,36 @@
+{
+  "formulas": ["F = m * a"],
+  "precision": 2,
+  "variables": [
+    { "symbol": "m", "label": "Mass", "defaultValue": 10, "min": 1, "max": 100, "step": 1, "unit": "kg" },
+    { "symbol": "a", "label": "Acceleration", "defaultValue": 9.8, "min": 0, "max": 50, "step": 0.1, "unit": "m/s^2" },
+    { "symbol": "F", "label": "Force", "defaultValue": 0, "min": 0, "max": 5000, "step": 1, "unit": "N" }
+  ],
+  "tier_rules": {
+    "primary": {
+      "variables_shown": ["m", "a"],
+      "description": "See how heavy objects require more force to push at the same acceleration.",
+      "title": "Force and Acceleration",
+      "show_graph": true
+    },
+    "middle": {
+      "variables_shown": ["a"],
+      "description": "Investigate force as acceleration changes for a fixed mass.",
+      "title": "Newton's Second Law Lab",
+      "show_graph": true
+    },
+    "high_school": {
+      "variables_shown": ["m", "a"],
+      "description": "Study Newton's Second Law of Motion: Force equals Mass times Acceleration.",
+      "title": "Force, Mass & Acceleration Lab",
+      "show_graph": true
+    },
+    "university": {
+      "description": "Advanced force sandbox with custom formulas and data export.",
+      "title": "Dynamics Sandbox",
+      "show_graph": true,
+      "custom_formula": true,
+      "export_csv": true
+    }
+  }
+}

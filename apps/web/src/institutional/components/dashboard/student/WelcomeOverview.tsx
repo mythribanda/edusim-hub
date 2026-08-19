@@ -15,10 +15,10 @@ import {
   Brain,
   Target
 } from 'lucide-react';
-import { useAuth } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export const WelcomeOverview = ({ onUploadClick }: { onUploadClick: () => void }) => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   
   // Mock data - would come from API
   const [overviewData] = useState({

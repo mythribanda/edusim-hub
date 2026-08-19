@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useAuth } from "@/context/AuthContext";
 import { 
   Mail, 
   Lock, 
@@ -34,7 +33,6 @@ function Login() {
   const { verify_token, reset_token } = Route.useSearch();
   const navigate = useNavigate();
   const CLEAR_LOGIN_SEARCH = { verify_token: undefined, reset_token: undefined };
-  
   const { 
     login, 
     loginWithGoogle,
@@ -44,7 +42,6 @@ function Login() {
     verifyEmail,
     isLoading 
   } = (useAuthStore as any)();
-  const { fetchUser } = useAuth();
 
   // Email form state
   const [email, setEmail] = useState("");
@@ -99,7 +96,6 @@ function Login() {
   const handleGoogleSignInSuccess = async (credential: string) => {
     const success = await loginWithGoogle(credential);
     if (success) {
-      await fetchUser();
       toast.success("Welcome back!");
       navigate({ to: "/dashboard" });
     }
@@ -161,7 +157,6 @@ function Login() {
     
     const success = await login({ email: normalizedEmail, password });
     if (success) {
-      await fetchUser();
       toast.success("Login successful");
       navigate({ to: "/dashboard" });
     }

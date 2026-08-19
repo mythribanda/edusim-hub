@@ -1,0 +1,35 @@
+{
+  "formulas": ["Area = pi * r^2"],
+  "precision": 4,
+  "variables": [
+    { "symbol": "r", "label": "Radius", "defaultValue": 5, "min": 0, "max": 50, "step": 0.5, "unit": "m" },
+    { "symbol": "Area", "label": "Area", "defaultValue": 0, "min": 0, "max": 10000, "step": 1, "unit": "m^2" }
+  ],
+  "tier_rules": {
+    "primary": {
+      "variables_shown": ["r"],
+      "description": "Learn how the area of a circle grows as you increase its radius.",
+      "title": "Circle Area Explorer",
+      "show_graph": true
+    },
+    "middle": {
+      "variables_shown": ["r"],
+      "description": "Discover the quadratic relationship between a circle's radius and its area.",
+      "title": "Geometry Lab: Circles",
+      "show_graph": true
+    },
+    "high_school": {
+      "variables_shown": ["r"],
+      "description": "Explore the area of a circle using pi to 4 decimal places of precision.",
+      "title": "Circle Area Laboratory",
+      "show_graph": true
+    },
+    "university": {
+      "description": "Advanced geometric sandbox with custom formulas.",
+      "title": "Geometry Sandbox",
+      "show_graph": true,
+      "custom_formula": true,
+      "export_csv": true
+    }
+  }
+}

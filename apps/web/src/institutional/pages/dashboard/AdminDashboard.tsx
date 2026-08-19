@@ -40,7 +40,7 @@ import {
   Lock,
   Loader2
 } from 'lucide-react';
-import { useAuth } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 
 import { UtilityBar } from '@/institutional/components/shared/UtilityBar';
 import { ComprehensiveReports } from '@/institutional/components/dashboard/admin/ComprehensiveReports';
@@ -49,7 +49,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { toast } from '@/institutional/hooks-ssh/use-toast';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');

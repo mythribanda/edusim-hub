@@ -1,0 +1,37 @@
+{
+  "formulas": ["v = u + a * t"],
+  "precision": 2,
+  "variables": [
+    { "symbol": "u", "label": "Initial Velocity", "defaultValue": 5, "min": 0, "max": 20, "step": 1, "unit": "m/s" },
+    { "symbol": "a", "label": "Acceleration", "defaultValue": 9.8, "min": 0, "max": 20, "step": 0.1, "unit": "m/s^2" },
+    { "symbol": "t", "label": "Time", "defaultValue": 4, "min": 0, "max": 10, "step": 0.5, "unit": "s" },
+    { "symbol": "v", "label": "Final Velocity", "defaultValue": 0, "min": 0, "max": 100, "step": 1, "unit": "m/s" }
+  ],
+  "tier_rules": {
+    "primary": {
+      "variables_shown": ["u", "a", "t"],
+      "description": "Learn how starting velocity, acceleration, and time affect final velocity.",
+      "title": "Kinematics: Velocity Equation",
+      "show_graph": true
+    },
+    "middle": {
+      "variables_shown": ["t"],
+      "description": "Explore final velocity as a function of time under constant acceleration.",
+      "title": "Kinematics: Time Sweep",
+      "show_graph": true
+    },
+    "high_school": {
+      "variables_shown": ["u", "a", "t"],
+      "description": "Full kinematic equations study under constant linear acceleration.",
+      "title": "Kinematics Laboratory",
+      "show_graph": true
+    },
+    "university": {
+      "description": "Advanced multi-variable kinematic sandbox with custom equations.",
+      "title": "University Kinematics Sandbox",
+      "show_graph": true,
+      "custom_formula": true,
+      "export_csv": true
+    }
+  }
+}

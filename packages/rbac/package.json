@@ -1,0 +1,18 @@
+{
+  "name": "@edusim/rbac",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint .",
+    "test": "ts-node test.ts"
+  },
+  "dependencies": {
+    "@edusim/shared-types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

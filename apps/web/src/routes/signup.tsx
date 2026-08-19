@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useAuth } from "@/context/AuthContext";
+import { UserRole, AgeTier } from "@edusim/shared-types";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -34,9 +34,10 @@ type FieldName = "name" | "email" | "mobileNumber" | "password" | "confirmPasswo
 function Signup() {
   const navigate = useNavigate();
   const { register, loginWithGoogle, isLoading } = useAuthStore();
-  const { fetchUser } = useAuth();
 
   const [name, setName] = useState("");
+  const [role, setRole] = useState<UserRole>("student");
+  const [ageTier, setAgeTier] = useState<AgeTier>("primary");
   const [email, setEmail] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -78,7 +79,6 @@ function Signup() {
   const handleGoogleSignInSuccess = async (credential: string) => {
     const success = await loginWithGoogle(credential);
     if (success) {
-      await fetchUser();
       toast.success("Welcome to EduSim!");
       navigate({ to: "/dashboard" });
     }
@@ -199,7 +199,8 @@ function Signup() {
         name: name.trim(),
         email: email.trim(),
         password,
-        mobile: passwordChecks.digitsOnly || undefined,
+        role,
+        age_tier: role === "student" ? ageTier : undefined,
       });
 
       if (success) {
@@ -467,6 +468,40 @@ function Signup() {
                 </p>
               )}
             </div>
+
+            <div className="space-y-1">
+              <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">Role</label>
+              <div className="relative">
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as UserRole)}
+                  className="w-full rounded-2xl bg-background border border-border px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                >
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="admin">Admin</option>
+                  <option value="parent">Parent</option>
+                </select>
+              </div>
+            </div>
+
+            {role === "student" && (
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">Age Tier</label>
+                <div className="relative">
+                  <select
+                    value={ageTier}
+                    onChange={(e) => setAgeTier(e.target.value as AgeTier)}
+                    className="w-full rounded-2xl bg-background border border-border px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                  >
+                    <option value="primary">Primary (Early/Elementary)</option>
+                    <option value="middle">Middle School</option>
+                    <option value="high_school">High School</option>
+                    <option value="university">University</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2 rounded-2xl bg-secondary border border-border/40 p-4">
               <div className="flex items-start gap-3">

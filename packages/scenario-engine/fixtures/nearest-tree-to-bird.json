@@ -1,0 +1,79 @@
+{
+  "$schema": "../schema/simulation-config.schema.json",
+  "_meta": {
+    "id": "nearest-tree-to-bird",
+    "title": "Nearest Tree to Bird",
+    "subject": "Nature / Distance",
+    "tier_min": "primary",
+    "description": "A bird lands in a meadow. The student picks which tree it should fly to first — the closest one."
+  },
+  "background": "linear-gradient(180deg, #87CEEB 0%, #87CEEB 60%, #90EE90 60%, #90EE90 100%)",
+  "question": {
+    "text": "The bird wants to rest in the nearest tree. Which tree should it fly to?",
+    "hint": "Think about which tree is closest to where the bird is standing."
+  },
+  "seeker": {
+    "assetSlug": "bird",
+    "label": "Bird",
+    "x": 0.5,
+    "y": 0.65
+  },
+  "objects": [
+    {
+      "assetSlug": "tree",
+      "label": "Oak Tree",
+      "x": 0.15,
+      "y": 0.55,
+      "properties": { "type": "oak" },
+      "draggable": false
+    },
+    {
+      "assetSlug": "tree-pine",
+      "label": "Pine Tree",
+      "x": 0.75,
+      "y": 0.50,
+      "properties": { "type": "pine" },
+      "draggable": false
+    },
+    {
+      "assetSlug": "tree-palm",
+      "label": "Palm Tree",
+      "x": 0.88,
+      "y": 0.60,
+      "properties": { "type": "palm" },
+      "draggable": false
+    },
+    {
+      "assetSlug": "tree-autumn",
+      "label": "Autumn Tree",
+      "x": 0.35,
+      "y": 0.45,
+      "properties": { "type": "autumn" },
+      "draggable": false
+    }
+  ],
+  "correct_rule": { "type": "nearest" },
+  "tier_rules": {
+    "primary": {
+      "questionOverride": "Which tree is the bird closest to?",
+      "showDistanceLabels": true,
+      "maxAttempts": 3,
+      "hint": "Look for the tree that is right next to the bird!"
+    },
+    "middle": {
+      "showDistanceLabels": true,
+      "maxAttempts": 2,
+      "hint": "Measure how far each tree is from the bird."
+    },
+    "high_school": {
+      "questionOverride": "Using Euclidean distance, identify the tree nearest to the bird's position (0.5, 0.65).",
+      "showDistanceLabels": false,
+      "maxAttempts": 1
+    },
+    "university": {
+      "questionOverride": "Given seeker position (0.5, 0.65) in a normalised coordinate space, compute the L2 norm to each target and select the argmin.",
+      "showDistanceLabels": false,
+      "maxAttempts": 1
+    }
+  }
+}

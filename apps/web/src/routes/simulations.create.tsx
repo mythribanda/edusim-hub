@@ -19,7 +19,7 @@ function CreateSimulationPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['admin', 'educator']}>
+    <ProtectedRoute allowedRoles={['admin', 'educator', 'faculty', 'teacher']}>
       <PageWrapper>
         <div className="glass-strong rounded-3xl p-8 max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold tracking-tight mb-2">Create New Simulation</h1>

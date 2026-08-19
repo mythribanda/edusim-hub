@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { middleware } from "@/middleware";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,7 +96,15 @@ function NotFoundComponent() {
   );
 }
 
-import { AuthProvider } from "@/context/AuthContext";
+
+
+function RootComponentWrapper() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RootComponent />
+    </QueryClientProvider>
+  );
+}
 
 export const Route = createRootRoute({
   head: () => ({
@@ -111,13 +120,7 @@ export const Route = createRootRoute({
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
-  component: () => (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RootComponent />
-      </AuthProvider>
-    </QueryClientProvider>
-  ),
+  component: RootComponentWrapper,
   notFoundComponent: NotFoundComponent,
 });
 
@@ -185,6 +188,10 @@ function RootComponent() {
       return;
     }
 
+    const checkMiddleware = async () => {
+      await middleware(pathname, navigate);
+    };
+
     if (isRootRoute) {
       navigate({
         to: isAuthenticated ? "/dashboard" : "/login",
@@ -193,12 +200,7 @@ function RootComponent() {
       return;
     }
 
-    if (!isAuthenticated && requiresAuth) {
-      toast.error("Please login to continue");
-      navigate({ to: "/login", search: EMPTY_LOGIN_SEARCH as any });
-    } else if (isAuthenticated && isAuthPage) {
-      navigate({ to: "/dashboard" });
-    }
+    checkMiddleware();
   }, [isAuthenticated, requiresAuth, navigate, isAuthPage, authChecked, isRootRoute, pathname]);
 
   if (isLandingOrAuthPage || pathname.startsWith("/institutional")) {

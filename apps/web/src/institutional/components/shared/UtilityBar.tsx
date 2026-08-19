@@ -18,7 +18,7 @@ import {
   UserCircle,
   CheckCheck,
 } from 'lucide-react';
-import { useAuth } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useNavigate } from '@tanstack/react-router';
 import { toast } from '@/institutional/hooks-ssh/use-toast';
 import { notificationService } from '@/institutional/services-ssh/notificationService';
@@ -34,7 +34,7 @@ interface UtilityBarProps {
 }
 
 export const UtilityBar = ({ userRole, showBackButton = true, onBackClick }: UtilityBarProps) => {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);

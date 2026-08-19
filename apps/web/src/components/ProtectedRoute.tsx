@@ -1,41 +1,39 @@
-import React, { ReactNode, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from '@tanstack/react-router';
-import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useAuthStore } from '@/store/useAuthStore'
 
-interface ProtectedRouteProps {
-  allowedRoles: string[];
-  children: ReactNode;
+interface Props {
+  children: React.ReactNode
+  allowedRoles?: string[]
 }
 
-export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
-  const { role, isLoading, user } = useAuth();
-  const navigate = useNavigate();
+export function ProtectedRoute({ children, allowedRoles }: Props) {
+  const { isAuthenticated, isLoading, hasHydrated, user } = useAuthStore()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
-        navigate({ to: '/login' as any });
-      } else if (role && !allowedRoles.includes(role)) {
-        navigate({ to: '/unauthorized' as any });
-      }
+    if (!hasHydrated || isLoading) return
+    
+    if (!isAuthenticated) {
+      navigate({ to: '/login' as any })
+      return
     }
-  }, [isLoading, role, user, allowedRoles, navigate]);
+    
+    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+      navigate({ to: '/unauthorized' as any })
+    }
+  }, [isAuthenticated, isLoading, hasHydrated, user, allowedRoles, navigate])
 
-  if (isLoading) {
+  if (!hasHydrated || isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-2">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground font-mono">Verifying access...</p>
-        </div>
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
-    );
+    )
   }
 
-  if (!user || (role && !allowedRoles.includes(role))) {
-    return null;
-  }
+  if (!isAuthenticated) return null
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) return null
 
-  return <>{children}</>;
+  return <>{children}</>
 }

@@ -1,0 +1,80 @@
+{
+  "$schema": "../schema/simulation-config.schema.json",
+  "_meta": {
+    "id": "heaviest-object-on-scale",
+    "title": "Heaviest Object on a Scale",
+    "subject": "Physics / Mass",
+    "tier_min": "primary",
+    "description": "Several objects sit on a virtual scale. The student identifies which is the heaviest, building intuition for mass and gravity before formal equations are introduced."
+  },
+  "background": "linear-gradient(160deg, #F8F5F0 0%, #EDE8E0 100%)",
+  "question": {
+    "text": "Which object is the heaviest? Place it on the scale.",
+    "hint": "Heavier objects have more mass — they push down harder on a scale."
+  },
+  "seeker": {
+    "assetSlug": "weight",
+    "label": "Scale",
+    "x": 0.50,
+    "y": 0.80
+  },
+  "objects": [
+    {
+      "assetSlug": "ball-soccer",
+      "label": "Soccer Ball",
+      "x": 0.15,
+      "y": 0.40,
+      "properties": { "mass": 0.43, "massLabel": "430 g" },
+      "draggable": true
+    },
+    {
+      "assetSlug": "wooden-box",
+      "label": "Wooden Box",
+      "x": 0.38,
+      "y": 0.38,
+      "properties": { "mass": 5.0, "massLabel": "5 kg" },
+      "draggable": true
+    },
+    {
+      "assetSlug": "beaker",
+      "label": "Water Beaker",
+      "x": 0.62,
+      "y": 0.42,
+      "properties": { "mass": 0.25, "massLabel": "250 g" },
+      "draggable": true
+    },
+    {
+      "assetSlug": "weight",
+      "label": "Iron Weight",
+      "x": 0.82,
+      "y": 0.35,
+      "properties": { "mass": 12.0, "massLabel": "12 kg" },
+      "draggable": true
+    }
+  ],
+  "correct_rule": { "type": "heaviest" },
+  "tier_rules": {
+    "primary": {
+      "questionOverride": "Which one is the heaviest? Tap it to put it on the scale!",
+      "showPropertyLabels": true,
+      "maxAttempts": 3,
+      "hint": "Look at the weight labels — which number is biggest?"
+    },
+    "middle": {
+      "questionOverride": "Which object has the greatest mass? Select it.",
+      "showPropertyLabels": true,
+      "maxAttempts": 2,
+      "hint": "Compare the mass values in kilograms."
+    },
+    "high_school": {
+      "questionOverride": "Identify the object with the highest mass (kg) from the given set. Explain why mass ≠ weight in a non-standard gravity field.",
+      "showPropertyLabels": false,
+      "maxAttempts": 1
+    },
+    "university": {
+      "questionOverride": "Given the mass values, select the object with maximum m. Compute its weight W = mg on Earth (g = 9.81 m/s²) and on Mars (g = 3.71 m/s²).",
+      "showPropertyLabels": false,
+      "maxAttempts": 1
+    }
+  }
+}

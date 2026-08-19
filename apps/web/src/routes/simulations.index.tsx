@@ -9,7 +9,7 @@ export const Route = createFileRoute('/simulations/')({
 
 function SimulationsPage() {
   return (
-    <ProtectedRoute allowedRoles={['admin', 'educator', 'student']}>
+    <ProtectedRoute>
       <PageWrapper>
         <div className="glass-strong rounded-3xl p-8 mb-6">
           <div className="flex justify-between items-center flex-wrap gap-4">

@@ -14,11 +14,17 @@ import {
   BarChart3,
   Users,
   BookOpen,
+  FlaskConical,
+  FileText,
+  Calendar,
+  ClipboardList,
+  Building,
+  MessageSquare,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAuth } from "@/context/AuthContext";
 import { useAuthStore } from "@/store/useAuthStore";
+import { meetsMinTier } from "@edusim/rbac";
 
 interface SidebarItem {
   to: string;
@@ -28,25 +34,38 @@ interface SidebarItem {
 }
 
 const navItems: SidebarItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: Home, roles: ["admin", "educator", "student"] },
-  { to: "/simulations", label: "Simulations", icon: Atom, roles: ["admin", "educator", "student"] },
-  { to: "/simulations/create", label: "Create Simulation", icon: Plus, roles: ["admin", "educator"] },
-  { to: "/tutor", label: "Tutor", icon: GraduationCap, roles: ["admin", "educator", "student"] },
-  { to: "/progress", label: "My Progress", icon: LineChart, roles: ["student"] },
-  { to: "/analytics", label: "Class Analytics", icon: BarChart3, roles: ["admin", "educator"] },
-  { to: "/admin/users", label: "User Management", icon: Users, roles: ["admin"] },
-  { to: "/resources", label: "Resources", icon: BookOpen, roles: ["admin", "educator", "student"] },
-  { to: "/profile", label: "Profile", icon: User, roles: ["admin", "educator", "student"] },
+  // EduSim features
+  { to: '/dashboard', label: 'Dashboard', icon: Home, roles: ['student', 'faculty', 'teacher', 'educator', 'admin', 'parent'] },
+  { to: '/class-feed', label: 'Class Feed', icon: MessageSquare, roles: ['student', 'faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/simulations', label: 'Simulations', icon: Atom, roles: ['student', 'faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/simulations/create', label: 'Create Simulation', icon: Plus, roles: ['faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/formula-lab', label: 'Formula Lab', icon: FlaskConical, roles: ['student', 'faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/tutor', label: 'AI Tutor', icon: GraduationCap, roles: ['student', 'faculty', 'educator', 'admin'] },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['faculty', 'teacher', 'educator', 'admin'] },
+  
+  // SSH features
+  { to: '/resources', label: 'Resources', icon: BookOpen, roles: ['student', 'faculty', 'teacher', 'educator', 'admin', 'parent'] },
+  { to: '/notes', label: 'Notes', icon: FileText, roles: ['student', 'faculty', 'educator', 'admin'] },
+  { to: '/attendance', label: 'Attendance', icon: Calendar, roles: ['faculty', 'teacher', 'admin', 'parent'] },
+  { to: '/curriculum', label: 'Curriculum', icon: ClipboardList, roles: ['faculty', 'teacher', 'admin'] },
+  
+  // Admin only
+  { to: '/admin/users', label: 'User Management', icon: Users, roles: ['admin'] },
+  { to: '/institutions', label: 'Institutions', icon: Building, roles: ['admin'] },
 ];
 
 export function Sidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { isCollapsed, toggleSidebar, isMobileOpen, setMobileOpen } = useSidebarStore();
-  const { logout } = useAuthStore();
-  const { role } = useAuth();
+  const { logout, user } = useAuthStore();
   
-  const userRole = role || "student";
-  const items = navItems.filter((item) => item.roles.includes(userRole));
+  const userRole = user?.role || "student";
+  let items = navItems.filter((item) => item.roles.includes(userRole));
+  if (userRole === "student" && user?.age_tier) {
+    if (!meetsMinTier(user.age_tier, "middle")) {
+      items = items.filter((item) => item.to !== "/class-feed");
+    }
+  }
 
   const sidebarVariants = {
     expanded: { width: 260 },
@@ -92,6 +111,32 @@ export function Sidebar() {
             )}
           </Link>
         </div>
+
+        {user && !isCollapsed && (
+          <div className="px-5 mb-6">
+            <div className="p-3.5 rounded-2xl bg-secondary/35 border border-border/10 flex items-center gap-3 overflow-hidden">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--neon-purple)] to-[var(--neon-blue)] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {user.name ? user.name.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : "?")}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-foreground truncate">
+                  {user.name || (user.email ? user.email.split("@")[0] : "User")}
+                </div>
+                <div className="flex mt-1">
+                  <span className={`text-[10px] uppercase font-mono font-extrabold px-2 py-0.5 rounded-full ${
+                    user.role === "admin"
+                      ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                      : user.role === "educator" || user.role === "faculty" || user.role === "teacher"
+                      ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                      : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                  }`}>
+                    {user.role}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <nav className="flex flex-col gap-2 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-4">
           {items.map((it) => {

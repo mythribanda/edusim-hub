@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Menu, X, Bell, User, LayoutDashboard, ChevronRight } from 'lucide-react';
-import { useAuth, UserRole } from '@/institutional/contexts/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
+
+export type UserRole = 'student' | 'faculty' | 'admin' | 'government' | 'parent';
 import { Avatar, AvatarFallback, AvatarImage } from '@/institutional/components/ui-ssh/avatar-ssh';
 import { Button } from '@/institutional/components/ui-ssh/button-ssh';
 import { ThemeToggle } from '@/institutional/components/ThemeToggle';
@@ -27,7 +29,7 @@ export function DashboardLayout({
   sidebarItems,
   children
 }: DashboardLayoutProps) {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
