@@ -1,5 +1,4 @@
-"use client";
-
+import { createFileRoute } from "@tanstack/react-router";
 import React, { useState, useEffect } from "react";
 import { 
   getClassPosts, 
@@ -9,10 +8,10 @@ import {
   deleteClassPost, 
   type ClassPost,
   type Reply 
-} from "../../lib/classFeedService";
+} from "@/lib/classFeedService";
 import { MessageSquare, Send, Calendar, RefreshCw, AlertCircle, Trash2, Sparkles, BarChart2, Reply as ReplyIcon } from "lucide-react";
 
-export default function TeacherFeedPage() {
+function TeacherFeedPage() {
   const [posts, setPosts] = useState<ClassPost[]>([]);
   const [newPostContent, setNewPostContent] = useState("");
   const [isReflectionPrompt, setIsReflectionPrompt] = useState(false);
@@ -23,21 +22,6 @@ export default function TeacherFeedPage() {
   const [token, setToken] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [selectedRollupPost, setSelectedRollupPost] = useState<ClassPost | null>(null);
-
-  useEffect(() => {
-    const t = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    setToken(t);
-    if (t) {
-      try {
-        const payload = JSON.parse(atob(t.split(".")[1]));
-        setCurrentUserId(payload.sub || "");
-      } catch {}
-      fetchFeed(t);
-    } else {
-      setErrorMsg("No auth token found. Please sign in at the student web app first to authenticate.");
-      setLoading(false);
-    }
-  }, []);
 
   const fetchFeed = async (authToken: string) => {
     setLoading(true);
@@ -51,6 +35,21 @@ export default function TeacherFeedPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const t = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    setToken(t);
+    if (t) {
+      try {
+        const payload = JSON.parse(atob(t.split(".")[1]));
+        setCurrentUserId(payload.sub || "");
+      } catch {}
+      fetchFeed(t);
+    } else {
+      setErrorMsg("No auth token found. Please sign in first.");
+      setLoading(false);
+    }
+  }, []);
 
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,7 +188,7 @@ export default function TeacherFeedPage() {
     const words = getWordCloudData(replies);
     if (words.length === 0) {
       return (
-        <p className="text-xs text-gray-400 italic text-center p-4 bg-gray-50 border border-gray-150 rounded-2xl">
+        <p className="text-xs text-muted-foreground italic text-center p-4 bg-secondary/50 border border-border rounded-2xl">
           Not enough distinct words to build a word cloud yet.
         </p>
       );
@@ -199,25 +198,23 @@ export default function TeacherFeedPage() {
     const minVal = Math.min(...words.map(w => w.value));
 
     return (
-      <div className="flex flex-wrap items-center justify-center gap-3.5 p-6 bg-gray-50 border border-gray-100 rounded-2xl min-h-[160px]">
+      <div className="flex flex-wrap items-center justify-center gap-3.5 p-6 bg-secondary/50 border border-border rounded-2xl min-h-[160px]">
         {words.map(({ text, value }) => {
           const size = maxVal === minVal ? 16 : 12 + ((value - minVal) / (maxVal - minVal)) * 20;
           const colors = [
-            "text-indigo-600",
-            "text-indigo-500",
-            "text-indigo-700",
-            "text-violet-650",
-            "text-violet-500",
-            "text-slate-700",
-            "text-slate-600",
-            "text-indigo-900"
+            "text-primary",
+            "text-primary/90",
+            "text-primary/80",
+            "text-primary/70",
+            "text-foreground",
+            "text-muted-foreground",
           ];
           const colorClass = colors[text.length % colors.length];
           return (
             <span
               key={text}
               style={{ fontSize: `${size}px` }}
-              className={`font-extrabold tracking-tight transition-all hover:scale-110 duration-205 cursor-default ${colorClass}`}
+              className={`font-extrabold tracking-tight transition-all hover:scale-110 duration-200 cursor-default ${colorClass}`}
               title={`${value} occurrences`}
             >
               {text}
@@ -242,8 +239,8 @@ export default function TeacherFeedPage() {
               onClick={() => handleToggleReaction(postId, emoji)}
               className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
                 hasReacted
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-bold"
-                  : "bg-gray-50 border-gray-250 text-gray-500 hover:bg-gray-100"
+                  ? "bg-primary/10 border-primary/30 text-primary font-bold"
+                  : "bg-secondary border-border text-muted-foreground hover:bg-secondary/80"
               }`}
             >
               <span>{emoji}</span>
@@ -260,18 +257,18 @@ export default function TeacherFeedPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-            <MessageSquare className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
+            <MessageSquare className="w-6 h-6 text-primary" />
             Class Feed & Announcements
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Post discussion prompts or announcements and moderate replies in real-time.
           </p>
         </div>
         {token && (
           <button
             onClick={() => fetchFeed(token)}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs rounded-xl shadow-sm transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-border bg-card hover:bg-secondary text-foreground font-semibold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Refresh Feed
@@ -281,17 +278,17 @@ export default function TeacherFeedPage() {
 
       {/* Error banner */}
       {errorMsg && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex gap-2 items-center">
-          <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-sm flex gap-2 items-center">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-500" />
           <div>{errorMsg}</div>
         </div>
       )}
 
       {/* New Post Form */}
       {token && !errorMsg && (
-        <form onSubmit={handleCreatePost} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <form onSubmit={handleCreatePost} className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">
+            <label className="block text-xs font-bold text-foreground mb-2 uppercase tracking-wide">
               Post an Announcement or Prompt
             </label>
             <textarea
@@ -301,20 +298,20 @@ export default function TeacherFeedPage() {
               rows={3}
               required
               disabled={submitting}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-border rounded-xl px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
             />
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground cursor-pointer">
               <input
                 type="checkbox"
                 checked={isReflectionPrompt}
                 onChange={(e) => setIsReflectionPrompt(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-650 focus:ring-indigo-500 border-gray-300 cursor-pointer"
+                className="w-4 h-4 rounded text-primary focus:ring-primary border-border cursor-pointer bg-background"
               />
               <span className="flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
                 Make this a Daily Reflection Prompt (triggers student dashboard card)
               </span>
             </label>
@@ -322,7 +319,7 @@ export default function TeacherFeedPage() {
             <button
               type="submit"
               disabled={submitting || !newPostContent.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+              className="bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs px-6 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {submitting ? "Posting..." : "Publish to Class Feed"}
             </button>
@@ -334,39 +331,39 @@ export default function TeacherFeedPage() {
       {token && !loading && (
         <div className="space-y-6">
           {posts.length === 0 ? (
-            <div className="text-center p-12 bg-white border border-gray-200 rounded-2xl">
-              <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-gray-900 mb-1">No Announcements Yet</h3>
-              <p className="text-xs text-gray-500">
+            <div className="text-center p-12 bg-card border border-border rounded-2xl">
+              <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <h3 className="text-sm font-bold text-foreground mb-1">No Announcements Yet</h3>
+              <p className="text-xs text-muted-foreground">
                 Start by posting your first question or update to the class.
               </p>
             </div>
           ) : (
             posts.map((post) => (
-              <div key={post.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              <div key={post.id} className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
                 {/* Parent Post */}
-                <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+                <div className="p-6 border-b border-border bg-secondary/15">
                   <div className="flex items-center justify-between gap-4 mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center font-bold text-indigo-600 text-sm">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary text-sm">
                         {getInitials(post.author.name, post.author.email)}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-gray-900">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-sm text-foreground">
                             {post.author.name || "Educator"}
                           </span>
-                          <span className="text-[10px] uppercase font-mono font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                          <span className="text-[10px] uppercase font-mono font-bold bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20">
                             {post.author.role}
                           </span>
                           {post.is_reflection && (
-                            <span className="text-[10px] uppercase font-mono font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="text-[10px] uppercase font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1 border border-primary/20">
                               <Sparkles className="w-2.5 h-2.5" />
                               Reflection Prompt
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-0.5">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                           <Calendar className="w-3.5 h-3.5" />
                           {new Date(post.created_at).toLocaleString()}
                         </div>
@@ -377,7 +374,7 @@ export default function TeacherFeedPage() {
                       {post.is_reflection && (
                         <button
                           onClick={() => setSelectedRollupPost(post)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-lg transition-colors cursor-pointer border border-indigo-100"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-lg transition-colors cursor-pointer border border-primary/20"
                           title="View student reflection analytics"
                         >
                           <BarChart2 className="w-3.5 h-3.5" />
@@ -386,38 +383,38 @@ export default function TeacherFeedPage() {
                       )}
                       <button
                         onClick={() => handleDeletePost(post.id)}
-                        className="p-2 text-gray-400 hover:text-red-650 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                        className="p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all cursor-pointer"
                         title="Delete prompt"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-                  <p className="text-gray-800 text-sm whitespace-pre-wrap pl-1">
+                  <p className="text-foreground text-sm whitespace-pre-wrap pl-1">
                     {post.content}
                   </p>
                   {renderReactions(post.id, post.reactions)}
                 </div>
 
                 {/* Replies */}
-                <div className="bg-gray-50/20 px-6 py-4 space-y-4">
+                <div className="bg-secondary/5 px-6 py-4 space-y-4">
                   {post.replies.length > 0 && (
                     <div className="space-y-3.5 mb-4">
                       {post.replies.map((reply) => (
-                        <div key={reply.id} className="flex gap-3 items-start bg-white border border-gray-100 rounded-xl p-3.5 shadow-sm relative group">
-                          <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 shrink-0">
+                        <div key={reply.id} className="flex gap-3 items-start bg-card border border-border/60 rounded-xl p-3.5 shadow-sm relative group">
+                          <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
                             {getInitials(reply.author.name, reply.author.email)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-xs text-gray-900">
+                                <span className="font-bold text-xs text-foreground">
                                   {reply.author.name || reply.author.email.split("@")[0]}
                                 </span>
                                 <span className={`text-[8px] uppercase font-mono px-1.5 py-0.2 rounded-full ${
                                   reply.author.role === "teacher"
-                                    ? "bg-amber-100 text-amber-800"
-                                    : "bg-blue-100 text-blue-800"
+                                    ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                    : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                                 }`}>
                                   {reply.author.role}
                                 </span>
@@ -432,24 +429,24 @@ export default function TeacherFeedPage() {
                                       [post.id]: `@${authorName} ${prev[post.id] || ""}`.trim() + " "
                                     }));
                                   }}
-                                  className="p-1 text-gray-400 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer"
+                                  className="p-1 text-muted-foreground hover:text-primary rounded-lg transition-colors cursor-pointer"
                                   title="Reply to user"
                                 >
                                   <ReplyIcon className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeletePost(reply.id)}
-                                  className="p-1 text-gray-400 hover:text-red-650 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                                  className="p-1 text-muted-foreground hover:text-red-405 rounded-lg hover:bg-red-500/10 transition-colors cursor-pointer"
                                   title="Delete reply"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             </div>
-                            <p className="text-xs text-gray-700 mt-1 whitespace-pre-wrap">
+                            <p className="text-xs text-foreground mt-1 whitespace-pre-wrap">
                               {reply.content}
                             </p>
-                            <span className="text-[10px] text-gray-400 mt-1 block">
+                            <span className="text-[10px] text-muted-foreground mt-1 block">
                               {new Date(reply.created_at).toLocaleString()}
                             </span>
                             {renderReactions(reply.id, reply.reactions)}
@@ -466,13 +463,13 @@ export default function TeacherFeedPage() {
                       placeholder="Reply to this announcement..."
                       value={replyTexts[post.id] || ""}
                       onChange={(e) => handleTextChange(post.id, e.target.value)}
-                      className="flex-1 text-xs bg-white border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-gray-900"
+                      className="flex-1 text-xs bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                       required
                     />
                     <button
                       type="submit"
                       disabled={!replyTexts[post.id]?.trim()}
-                      className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                      className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all cursor-pointer shadow-sm shrink-0"
                     >
                       <Send className="w-4 h-4" />
                     </button>
@@ -487,19 +484,19 @@ export default function TeacherFeedPage() {
       {/* Selected Rollup Modal Overlay */}
       {selectedRollupPost && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+          <div className="bg-card rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200 border border-border">
+            <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
-                <span className="text-[10px] uppercase font-mono font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-150">
+                <span className="text-[10px] uppercase font-mono font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
                   Reflection Rollup
                 </span>
-                <h2 className="text-lg font-bold text-gray-900 mt-1">
+                <h2 className="text-lg font-bold text-foreground mt-1">
                   &ldquo;{selectedRollupPost.content}&rdquo;
                 </h2>
               </div>
               <button
                 onClick={() => setSelectedRollupPost(null)}
-                className="text-gray-400 hover:text-gray-600 text-sm font-semibold p-2 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
+                className="text-muted-foreground hover:text-foreground text-sm font-semibold p-2 hover:bg-secondary rounded-lg cursor-pointer transition-colors"
               >
                 Close
               </button>
@@ -507,11 +504,11 @@ export default function TeacherFeedPage() {
 
             {/* Word Cloud Section */}
             <div>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                 Word Cloud Rollup
               </h3>
               {selectedRollupPost.replies.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No responses submitted yet to generate a word cloud.</p>
+                <p className="text-xs text-muted-foreground italic">No responses submitted yet to generate a word cloud.</p>
               ) : (
                 renderWordCloud(selectedRollupPost.replies)
               )}
@@ -519,35 +516,35 @@ export default function TeacherFeedPage() {
 
             {/* List of Replies Section */}
             <div>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
                 Student Responses ({selectedRollupPost.replies.length})
               </h3>
               {selectedRollupPost.replies.length === 0 ? (
-                <p className="text-xs text-gray-400 italic p-4 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                <p className="text-xs text-muted-foreground italic p-4 text-center bg-secondary/50 rounded-2xl border border-dashed border-border">
                   No students have replied to this reflection prompt yet.
                 </p>
               ) : (
                 <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
                   {selectedRollupPost.replies.map((reply) => (
-                    <div key={reply.id} className="p-3 bg-gray-50 border border-gray-100 rounded-xl relative group">
+                    <div key={reply.id} className="p-3 bg-secondary/35 border border-border rounded-xl relative group">
                       <div className="flex items-center justify-between gap-4 mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-900">
+                          <span className="text-xs font-bold text-foreground">
                             {reply.author.name || reply.author.email.split("@")[0]}
                           </span>
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-muted-foreground">
                             {new Date(reply.created_at).toLocaleString()}
                           </span>
                         </div>
                         <button
                           onClick={() => handleDeletePost(reply.id)}
-                          className="p-1 text-gray-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                          className="p-1 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
                           title="Delete response"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <p className="text-xs text-gray-700 whitespace-pre-wrap">
+                      <p className="text-xs text-foreground whitespace-pre-wrap">
                         {reply.content}
                       </p>
                     </div>
@@ -562,9 +559,13 @@ export default function TeacherFeedPage() {
       {/* Loading indicator */}
       {token && loading && (
         <div className="flex justify-center items-center py-12">
-          <RefreshCw className="w-8 h-8 text-indigo-650 animate-spin text-indigo-600" />
+          <RefreshCw className="w-8 h-8 text-primary animate-spin" />
         </div>
       )}
     </div>
   );
 }
+
+export const Route = createFileRoute("/teacher/feed")({
+  component: TeacherFeedPage,
+});

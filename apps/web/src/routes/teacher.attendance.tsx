@@ -1,24 +1,5 @@
-"use client";
-
-/**
- * /attendance — Attendance Marking Page (Teacher Portal)
- *
- * Features:
- *  - Date picker (defaults to today, future dates disabled)
- *  - Class roster loaded from GET /api/class/students
- *  - present / absent / late toggle per student (keyboard-friendly)
- *  - Optional subject field
- *  - "Save attendance" → POST /api/attendance/mark
- *  - Post-save summary: "X present, Y absent, Z late"
- *  - Edit mode: if today's attendance is already saved and the 2-hour
- *    window is still open, show an "Edit" button to re-enter the form.
- *    Once the window closes the UI shows a locked state.
- *
- * Auth: reads JWT from localStorage["token"] — same pattern as other pages.
- * API:  NEXT_PUBLIC_API_URL env var (default http://localhost:8000)
- */
-
 import React, { useState, useEffect, useCallback } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   CheckCircle2,
   XCircle,
@@ -32,9 +13,7 @@ import {
   Pencil,
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
-// ── types ──────────────────────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 type AttendanceStatus = "present" | "absent" | "late";
 
@@ -59,8 +38,6 @@ interface ForDateResponse {
 
 type PageState = "idle" | "loading_roster" | "ready" | "saving" | "saved" | "error" | "locked";
 
-// ── helpers ────────────────────────────────────────────────────────────────
-
 function todayISO(): string {
   return new Date().toISOString().split("T")[0];
 }
@@ -77,26 +54,24 @@ const STATUS_CONFIG: Record<
     label: "Present",
     icon: <CheckCircle2 className="w-4 h-4" />,
     ring: "ring-2 ring-emerald-500",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-450 text-emerald-400",
   },
   absent: {
     label: "Absent",
     icon: <XCircle className="w-4 h-4" />,
-    ring: "ring-2 ring-rose-500",
-    bg: "bg-rose-50",
-    text: "text-rose-700",
+    ring: "ring-2 ring-destructive",
+    bg: "bg-destructive/10",
+    text: "text-destructive",
   },
   late: {
     label: "Late",
     icon: <AlertCircle className="w-4 h-4" />,
     ring: "ring-2 ring-amber-500",
-    bg: "bg-amber-50",
-    text: "text-amber-700",
+    bg: "bg-amber-500/10",
+    text: "text-amber-400",
   },
 };
-
-// ── sub-components ─────────────────────────────────────────────────────────
 
 function StatusToggle({
   value,
@@ -120,7 +95,7 @@ function StatusToggle({
             disabled={disabled}
             onClick={() => onChange(s)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all
-              ${active ? `${cfg.bg} ${cfg.text} ${cfg.ring} border-transparent` : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}
+              ${active ? `${cfg.bg} ${cfg.text} ${cfg.ring} border-transparent` : "bg-card text-muted-foreground border-border hover:border-muted-foreground/50"}
               ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
           >
             {cfg.icon}
@@ -140,19 +115,19 @@ function SummaryBanner({
   editMode: boolean;
 }) {
   return (
-    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
-      <div className="font-bold text-emerald-800 mb-2 flex items-center gap-2">
+    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm">
+      <div className="font-bold text-emerald-400 mb-2 flex items-center gap-2">
         <CheckCircle2 className="w-4 h-4" />
         {editMode ? "Attendance updated!" : "Attendance saved!"}
       </div>
       <div className="flex gap-5 text-sm">
-        <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
           <CheckCircle2 className="w-3.5 h-3.5" /> {counts.present} present
         </span>
-        <span className="flex items-center gap-1 text-rose-600 font-semibold">
+        <span className="flex items-center gap-1 text-destructive font-semibold">
           <XCircle className="w-3.5 h-3.5" /> {counts.absent} absent
         </span>
-        <span className="flex items-center gap-1 text-amber-600 font-semibold">
+        <span className="flex items-center gap-1 text-amber-400 font-semibold">
           <AlertCircle className="w-3.5 h-3.5" /> {counts.late} late
         </span>
       </div>
@@ -160,9 +135,7 @@ function SummaryBanner({
   );
 }
 
-// ── main page ──────────────────────────────────────────────────────────────
-
-export default function AttendancePage() {
+function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [subject, setSubject] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
@@ -174,11 +147,10 @@ export default function AttendancePage() {
   const [isViewingExisting, setIsViewingExisting] = useState(false);
   const [classId, setClassId] = useState<string | null>(null);
 
-  // ── load roster ────────────────────────────────────────────────────────
   const loadRoster = useCallback(async () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
-      setErrorMsg("No auth token. Please sign in at the student app first.");
+      setErrorMsg("No auth token. Please sign in first.");
       setPageState("error");
       return;
     }
@@ -201,8 +173,7 @@ export default function AttendancePage() {
       const roster: Student[] = await rosterRes.json();
       setStudents(roster);
 
-      // 2. Determine class_id from the first student (all share the same class)
-      //    We also need it for the mark endpoint — decode from JWT profile endpoint
+      // 2. Determine class_id from user profile
       const meRes = await fetch(`${API_BASE}/api/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -217,7 +188,7 @@ export default function AttendancePage() {
       const defaultStatuses: Record<string, AttendanceStatus> = {};
       for (const s of roster) defaultStatuses[s.id] = "present";
 
-      // 4. If date is today, check for already-saved records
+      // 4. If date is today or in the past, check for already-saved records
       if (teacherClassId && selectedDate <= todayISO()) {
         const savedRes = await fetch(
           `${API_BASE}/api/attendance/for-date?class_id=${teacherClassId}&date=${selectedDate}${subject ? `&subject=${encodeURIComponent(subject)}` : ""}`,
@@ -235,7 +206,6 @@ export default function AttendancePage() {
           setIsViewingExisting(hasSaved);
 
           if (hasSaved) {
-            // Compute summary from saved data
             const counts: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0 };
             for (const rec of Object.values(saved.by_student)) counts[rec.status]++;
             setSavedCounts(counts);
@@ -257,7 +227,6 @@ export default function AttendancePage() {
     }
   }, [selectedDate, subject]);
 
-  // Load roster when date changes
   useEffect(() => {
     if (isFutureDate(selectedDate)) {
       setPageState("idle");
@@ -267,9 +236,8 @@ export default function AttendancePage() {
       return;
     }
     loadRoster();
-  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedDate, loadRoster]);
 
-  // ── save handler ───────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!classId) {
       setErrorMsg("Could not determine your class ID. Please refresh.");
@@ -313,7 +281,6 @@ export default function AttendancePage() {
         throw new Error(err.detail ?? `Server error (${res.status})`);
       }
 
-      // Compute summary
       const counts: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0 };
       for (const status of Object.values(statuses)) counts[status]++;
       setSavedCounts(counts);
@@ -326,7 +293,6 @@ export default function AttendancePage() {
     }
   };
 
-  // ── status helpers ─────────────────────────────────────────────────────
   const markAll = (status: AttendanceStatus) => {
     const next: Record<string, AttendanceStatus> = {};
     for (const s of students) next[s.id] = status;
@@ -338,26 +304,25 @@ export default function AttendancePage() {
   const lateCount     = Object.values(statuses).filter((s) => s === "late").length;
   const isFormDisabled = pageState === "saving" || (pageState === "saved" && !isEditMode) || pageState === "locked";
 
-  // ── render ─────────────────────────────────────────────────────────────
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Page header */}
-      <div className="mb-2">
-        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-          <CalendarDays className="w-6 h-6 text-indigo-600" />
+      <div>
+        <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
+          <CalendarDays className="w-6 h-6 text-primary" />
           Mark Attendance
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Select a date and mark present / absent / late for each student.
         </p>
       </div>
 
       {/* Date + Subject row */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
+      <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Date picker */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-bold text-foreground mb-1.5 uppercase tracking-wide">
               Date
             </label>
             <input
@@ -365,10 +330,10 @@ export default function AttendancePage() {
               value={selectedDate}
               max={todayISO()}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-border bg-background rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {isFutureDate(selectedDate) && (
-              <p className="mt-1 text-xs text-rose-600 font-medium">
+              <p className="mt-1 text-xs text-destructive font-medium">
                 ⛔ Cannot mark attendance for a future date.
               </p>
             )}
@@ -376,9 +341,9 @@ export default function AttendancePage() {
 
           {/* Subject */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+            <label className="block text-xs font-bold text-foreground mb-1.5 uppercase tracking-wide">
               Subject{" "}
-              <span className="text-gray-400 font-normal">(optional)</span>
+              <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <input
               type="text"
@@ -388,7 +353,7 @@ export default function AttendancePage() {
               onBlur={() => {
                 if (!isFutureDate(selectedDate) && pageState !== "loading_roster") loadRoster();
               }}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-border bg-background rounded-xl px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
         </div>
@@ -398,7 +363,7 @@ export default function AttendancePage() {
           type="button"
           onClick={loadRoster}
           disabled={isFutureDate(selectedDate) || pageState === "loading_roster"}
-          className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-40 cursor-pointer"
+          className="flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80 disabled:opacity-40 cursor-pointer"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${pageState === "loading_roster" ? "animate-spin" : ""}`} />
           {pageState === "loading_roster" ? "Loading roster…" : "Reload roster"}
@@ -407,7 +372,7 @@ export default function AttendancePage() {
 
       {/* Error banner */}
       {pageState === "error" && errorMsg && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+        <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm">
           <div className="font-bold mb-1">⚠️ Error</div>
           {errorMsg}
         </div>
@@ -418,8 +383,8 @@ export default function AttendancePage() {
         <div className="space-y-3">
           <SummaryBanner counts={savedCounts} editMode={isViewingExisting} />
           {pageState === "locked" ? (
-            <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-              <Lock className="w-4 h-4 text-gray-400" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-secondary border border-border rounded-xl px-4 py-3">
+              <Lock className="w-4 h-4 text-muted-foreground" />
               The 2-hour edit window has closed. Contact an admin to make changes.
             </div>
           ) : (
@@ -429,7 +394,7 @@ export default function AttendancePage() {
                 setIsEditMode(true);
                 setPageState("ready");
               }}
-              className="flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+              className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 cursor-pointer"
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit attendance (within 2-hour window)
@@ -440,20 +405,20 @@ export default function AttendancePage() {
 
       {/* Roster table */}
       {students.length > 0 && (pageState === "ready" || pageState === "saving" || (pageState === "saved" && isEditMode)) && (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
           {/* Table header row with bulk actions */}
-          <div className="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-              <Users className="w-4 h-4 text-indigo-500" />
+          <div className="px-5 py-3.5 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Users className="w-4 h-4 text-primary" />
               {students.length} student{students.length !== 1 ? "s" : ""}
               <span className="ml-3 flex gap-2 text-xs font-semibold">
-                <span className="text-emerald-600">{presentCount}P</span>
-                <span className="text-rose-600">{absentCount}A</span>
-                <span className="text-amber-600">{lateCount}L</span>
+                <span className="text-emerald-400">{presentCount}P</span>
+                <span className="text-destructive">{absentCount}A</span>
+                <span className="text-amber-400">{lateCount}L</span>
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-gray-500 font-medium">Mark all:</span>
+              <span className="text-muted-foreground font-medium">Mark all:</span>
               {(["present", "absent", "late"] as AttendanceStatus[]).map((s) => (
                 <button
                   key={s}
@@ -471,26 +436,26 @@ export default function AttendancePage() {
           </div>
 
           {/* Student rows */}
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border/40">
             {students.map((student, idx) => {
               const current = statuses[student.id] ?? "present";
               return (
                 <div
                   key={student.id}
                   className={`flex items-center justify-between px-5 py-3 transition-colors ${
-                    current === "absent" ? "bg-rose-50/40" : current === "late" ? "bg-amber-50/40" : ""
+                    current === "absent" ? "bg-destructive/5" : current === "late" ? "bg-amber-500/5" : ""
                   }`}
                 >
                   {/* Student info */}
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${
-                      current === "present" ? "bg-emerald-500" : current === "absent" ? "bg-rose-400" : "bg-amber-400"
+                      current === "present" ? "bg-emerald-500" : current === "absent" ? "bg-destructive/80" : "bg-amber-500"
                     }`}>
                       {idx + 1}
                     </div>
                     <div className="min-w-0">
-                      <div className="font-semibold text-sm text-gray-900 truncate">{student.name}</div>
-                      <div className="text-xs text-gray-400 truncate">{student.email}</div>
+                      <div className="font-semibold text-sm text-foreground truncate">{student.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{student.email}</div>
                     </div>
                   </div>
 
@@ -506,8 +471,8 @@ export default function AttendancePage() {
           </div>
 
           {/* Save button */}
-          <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-4">
-            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+          <div className="px-5 py-4 border-t border-border bg-secondary/30 flex items-center justify-between gap-4">
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5" />
               {isEditMode
                 ? "Editing within the 2-hour window"
@@ -517,7 +482,7 @@ export default function AttendancePage() {
               type="button"
               onClick={handleSave}
               disabled={pageState === "saving"}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shadow-md cursor-pointer"
+              className="flex items-center gap-2 bg-primary hover:bg-primary/95 disabled:opacity-60 text-primary-foreground font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shadow-md cursor-pointer"
             >
               {pageState === "saving" ? (
                 <>
@@ -536,24 +501,14 @@ export default function AttendancePage() {
 
       {/* Empty state */}
       {pageState === "idle" && !isFutureDate(selectedDate) && (
-        <div className="text-center text-gray-400 text-sm py-12">
+        <div className="text-center text-muted-foreground text-sm py-12">
           Click &ldquo;Reload roster&rdquo; to load students.
         </div>
       )}
-
-      {/* Auth hint */}
-      <p className="text-xs text-gray-400 text-center">
-        Sign in at{" "}
-        <a
-          href="http://localhost:5173/login"
-          target="_blank"
-          rel="noreferrer"
-          className="text-indigo-500 hover:underline"
-        >
-          the student app
-        </a>{" "}
-        with your teacher account to authenticate.
-      </p>
     </div>
   );
 }
+
+export const Route = createFileRoute("/teacher/attendance")({
+  component: AttendancePage,
+});

@@ -111,7 +111,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "EduSim — Interactive Learning Simulations" },
+      { title: "EduSim — Interactive Learning & Teacher Hub" },
       {
         name: "description",
         content: "Explore classes, subjects, and immersive science simulations.",

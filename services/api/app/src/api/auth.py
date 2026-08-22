@@ -2,10 +2,12 @@ import os
 import uuid
 import random
 import logging
+import requests
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -137,8 +139,8 @@ async def get_current_user(
     
     token = authorization.split(" ")[1]
     try:
-        # Supabase JWT is signed with HS256 using the JWT Secret Key
-        secret = os.getenv("SUPABASE_JWT_SECRET") or os.getenv("JWT_SECRET_KEY") or "your-secret-key-here"
+        # JWT is signed with HS256 using the JWT Secret Key
+        secret = os.getenv("JWT_SECRET")
         payload = jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -179,7 +181,7 @@ async def get_current_role(
     
     token = authorization.split(" ")[1]
     try:
-        secret = os.getenv("SUPABASE_JWT_SECRET") or os.getenv("JWT_SECRET_KEY") or "your-secret-key-here"
+        secret = os.getenv("JWT_SECRET")
         payload = jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
     except jwt.InvalidTokenError:
         raise HTTPException(
@@ -472,6 +474,131 @@ def google_login(request: GoogleLoginRequest, http_request: Request, db: Session
         "user": user,
         "message": "Welcome!"
     }
+
+
+@auth_router.get("/google/callback")
+def google_callback(
+    code: str,
+    http_request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Exchanges authorization code for access token, signs in the user,
+    and redirects back to frontend with the JWT token in URL query parameter.
+    """
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8080")
+
+    # Exchanging code for Google tokens
+    token_url = "https://oauth2.googleapis.com/token"
+    redirect_uri = "http://localhost:8001/auth/google/callback"
+
+    payload = {
+        "code": code,
+        "client_id": GOOGLE_CLIENT_ID,
+        "client_secret": GOOGLE_CLIENT_SECRET,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code"
+    }
+
+    try:
+        token_res = requests.post(token_url, data=payload, timeout=10)
+        if not token_res.ok:
+            logger.error("Google token exchange failed: %s", token_res.text)
+            return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=token_exchange_failed")
+
+        token_data = token_res.json()
+        id_token_str = token_data.get("id_token")
+        if not id_token_str:
+            return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=no_id_token")
+
+        # Verify the ID Token
+        id_info = id_token.verify_oauth2_token(
+            id_token_str,
+            google_requests.Request(),
+            GOOGLE_CLIENT_ID
+        )
+    except Exception as e:
+        logger.error("Google OAuth callback error: %s", str(e))
+        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=verification_failed")
+
+    if id_info.get("iss") not in ["accounts.google.com", "https://accounts.google.com"]:
+        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=invalid_issuer")
+
+    email = normalize_email(id_info.get("email"))
+    name = id_info.get("name")
+    avatar = id_info.get("picture")
+
+    # Look up the user by email
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+
+    if user:
+        from app.src.models.persistence import UserSetting
+        google_connected = db.query(UserSetting).filter(
+            UserSetting.user_id == user.id,
+            UserSetting.setting_key == "google_connected"
+        ).first()
+        if google_connected and google_connected.setting_value == False:
+            return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=google_login_disconnected")
+
+    # Create user if not exists
+    if not user:
+        sentinel_pwd = "OAUTH_GOOGLE_SENTINEL_" + uuid.uuid4().hex
+        user = User(
+            id=uuid.uuid4(),
+            name=name,
+            email=email,
+            password_hash=sentinel_pwd,
+            role="student",
+            age_tier="middle",
+            is_email_verified=True,
+            avatar=avatar
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        logger.info("User registered via Google OAuth callback (user_id=%s, email=%s)", user.id, email)
+    else:
+        # Update details if missing
+        if not hasattr(user, 'avatar') or not user.avatar:
+            user.avatar = avatar
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+    # Generate JWT tokens
+    access_token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role})
+    refresh_token = create_refresh_token(data={"sub": str(user.id), "email": user.email, "role": user.role})
+
+    # Record session & login events
+    record_login_event(
+        db,
+        user=user,
+        email=user.email,
+        success=True,
+        provider="google",
+        ip_address=http_request.client.host if http_request.client else None,
+        user_agent=http_request.headers.get("user-agent"),
+    )
+    record_user_session(
+        db,
+        user=user,
+        session_key=refresh_token,
+        user_agent=http_request.headers.get("user-agent"),
+        ip_address=http_request.client.host if http_request.client else None,
+        metadata={"source": "google-oauth-callback"},
+    )
+    record_refresh_token(
+        db,
+        user=user,
+        token_jti=refresh_token,
+        user_agent=http_request.headers.get("user-agent"),
+        ip_address=http_request.client.host if http_request.client else None,
+        metadata={"source": "google-oauth-callback"},
+    )
+    db.commit()
+    logger.info("Google OAuth callback success — redirecting to frontend (user_id=%s)", user.id)
+
+    return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?token={access_token}")
 
 
 @auth_router.post("/refresh", response_model=TokenResponse)

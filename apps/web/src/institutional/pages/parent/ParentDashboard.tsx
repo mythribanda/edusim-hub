@@ -50,7 +50,7 @@ export function ParentDashboard() {
   const [emailInput, setEmailInput] = useState("");
   const [isLinking, setIsLinking] = useState(false);
 
-  const API_BASE = (import.meta as any).env.VITE_API_URL || "http://localhost:8000";
+  const API_BASE = (import.meta as any).env.VITE_API_URL || "http://localhost:8001";
 
   // Fetch children metrics
   const { data: metricsData, refetch: refetchMetrics, isLoading } = useQuery({

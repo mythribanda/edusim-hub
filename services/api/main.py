@@ -39,6 +39,7 @@ from app.src.api.assets_router import assets_router
 from app.src.api.assignment_router import assignment_router
 from app.src.api.class_posts_router import class_posts_router
 from app.src.api.digest_router import digest_router
+from app.src.api.reports_router import router as reports_router
 
 from app.src.api.formula import router as generic_formula_router
 from app.src.api.questions import router as generic_questions_router
@@ -138,12 +139,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# COOP middleware for Google OAuth popup
+# COOP middleware to fix Google OAuth popup issues
 @app.middleware("http")
-async def add_coop_header(request: Request, call_next):
+async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
-    if "/auth/google" in request.url.path:
-        response.headers["Cross-Origin-Opener-Policy"] = "unsafe-none"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
     return response
 
 @app.middleware("http")
@@ -158,7 +158,7 @@ async def parent_rbac_middleware(request: Request, call_next):
                 token = auth_header.split(" ")[1]
                 try:
                     import jwt
-                    secret = os.getenv("SUPABASE_JWT_SECRET") or os.getenv("JWT_SECRET_KEY") or "your-secret-key-here"
+                    secret = os.getenv("JWT_SECRET")
                     payload = jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
                     
                     user_metadata = payload.get("user_metadata", {})
@@ -178,9 +178,20 @@ async def parent_rbac_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
-# CORS — origins are restricted to the ALLOWED_ORIGINS env var (see top of file).
-# allow_credentials=True is safe here because origins are never wildcarded.
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+# CORS configuration
+allowed_origins = [
+    "http://localhost:8080",   # Student portal
+    "http://localhost:3000",   # Teacher portal  
+    "http://127.0.0.1:8080",
+    "http://127.0.0.1:3000",
+    os.getenv("FRONTEND_URL", "http://localhost:8080"),
+    os.getenv("TEACHER_PORTAL_URL", "http://localhost:3000"),
+]
+env_origins = os.getenv("ALLOWED_ORIGINS")
+if env_origins:
+    allowed_origins.extend([o.strip() for o in env_origins.split(",") if o.strip()])
+allowed_origins = list(set(allowed_origins))
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -188,6 +199,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Google OAuth Callback Proxy for redirect from Google Console
+@app.get("/auth/google/callback")
+async def google_callback_proxy(request: Request):
+    code = request.query_params.get("code")
+    if not code:
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"{frontend_url}/auth/callback?error=missing_code")
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"/api/auth/google/callback?code={code}")
+
 
 # Root Route
 @app.get("/")
@@ -264,3 +287,10 @@ app.include_router(assets_router, prefix="/api")
 app.include_router(assignment_router, prefix="/api")
 app.include_router(class_posts_router, prefix="/api")
 app.include_router(digest_router, prefix="/api")
+app.include_router(reports_router, prefix="/api")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+

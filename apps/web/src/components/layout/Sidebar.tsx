@@ -20,6 +20,9 @@ import {
   ClipboardList,
   Building,
   MessageSquare,
+  ClipboardCheck,
+  Activity,
+  CalendarDays,
 } from "lucide-react";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -43,6 +46,13 @@ const navItems: SidebarItem[] = [
   { to: '/tutor', label: 'AI Tutor', icon: GraduationCap, roles: ['student', 'faculty', 'educator', 'admin'] },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, roles: ['faculty', 'teacher', 'educator', 'admin'] },
   
+  // Teacher Portal features (merged)
+  { to: '/teacher/assignments', label: 'Create Assignment', icon: Plus, roles: ['faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/teacher/grading', label: 'Grading Center', icon: ClipboardCheck, roles: ['faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/teacher/monitoring', label: 'Class Monitor', icon: Activity, roles: ['faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/teacher/feed', label: 'Teacher Feed', icon: MessageSquare, roles: ['faculty', 'teacher', 'educator', 'admin'] },
+  { to: '/teacher/attendance', label: 'Mark Attendance', icon: CalendarDays, roles: ['faculty', 'teacher', 'educator', 'admin'] },
+
   // SSH features
   { to: '/resources', label: 'Resources', icon: BookOpen, roles: ['student', 'faculty', 'teacher', 'educator', 'admin', 'parent'] },
   { to: '/notes', label: 'Notes', icon: FileText, roles: ['student', 'faculty', 'educator', 'admin'] },

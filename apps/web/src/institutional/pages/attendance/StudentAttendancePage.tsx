@@ -92,7 +92,7 @@ function computeSubjectSummary(records: AttendanceRecord[]) {
 
 export function StudentAttendancePage() {
   const { user, token } = useAuthStore();
-  const API_BASE = (import.meta as any).env.VITE_API_URL || "http://localhost:8000";
+  const API_BASE = (import.meta as any).env.VITE_API_URL || "http://localhost:8001";
 
   // filters
   const [searchTerm, setSearchTerm]           = useState("");

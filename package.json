@@ -11,6 +11,8 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "backend": "cd services/api && uvicorn main:app --reload --port 8001 --host 0.0.0.0",
+    "dev:backend": "cd services/api && venv\\Scripts\\uvicorn main:app --reload --port 8001",
     "lint": "turbo lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },

@@ -1,22 +1,7 @@
-"use client";
-
-/**
- * /assignments — Create Assignment page (Teacher Portal)
- *
- * Allows a logged-in teacher to:
- *  - Pick a Module UUID (or title lookup)
- *  - Enter a Class UUID
- *  - Set an optional due date
- *  - Write optional instructions
- *  - Submit → POST /api/assignments on the FastAPI backend
- *
- * Auth: reads the JWT from localStorage["token"] (set when the teacher
- * signs in via apps/web, which syncs the token to the same localStorage key).
- */
-
+import { createFileRoute } from "@tanstack/react-router";
 import React, { useState, useEffect } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 interface AssignmentResult {
   assignment_id: string;
@@ -28,7 +13,7 @@ interface AssignmentResult {
 
 type SubmitState = "idle" | "loading" | "success" | "error";
 
-export default function CreateAssignmentPage() {
+function CreateAssignmentPage() {
   const [moduleId, setModuleId] = useState("");
   const [classId, setClassId] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -69,7 +54,7 @@ export default function CreateAssignmentPage() {
 
     if (!token) {
       setErrorMsg(
-        "No auth token found. Please sign in at the student web app first, then return here."
+        "No auth token found. Please sign in first."
       );
       setSubmitState("error");
       return;
@@ -123,13 +108,13 @@ export default function CreateAssignmentPage() {
   };
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-xl mx-auto space-y-8">
       {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight mb-1">
+      <div>
+        <h1 className="text-2xl font-extrabold text-foreground tracking-tight mb-1">
           ➕ Create Assignment
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           Link a module to a class and optionally set a due date and instructions.
           Students will see this on their dashboard immediately.
         </p>
@@ -137,13 +122,13 @@ export default function CreateAssignmentPage() {
 
       {/* Success banner */}
       {submitState === "success" && result && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm">
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-sm">
           <div className="font-bold mb-1">✅ Assignment created!</div>
           <div className="font-mono text-xs break-all">
             ID: {result.assignment_id}
           </div>
           {result.due_date && (
-            <div className="mt-1 text-xs text-green-700">
+            <div className="mt-1 text-xs text-emerald-500">
               Due: {new Date(result.due_date).toLocaleString()}
             </div>
           )}
@@ -152,7 +137,7 @@ export default function CreateAssignmentPage() {
 
       {/* Error banner */}
       {submitState === "error" && errorMsg && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400 text-sm">
           <div className="font-bold mb-1">⚠️ Error</div>
           {errorMsg}
         </div>
@@ -161,11 +146,11 @@ export default function CreateAssignmentPage() {
       {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5"
+        className="bg-card border border-border rounded-3xl p-6 shadow-sm space-y-5"
       >
         {/* Module picker */}
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-bold text-foreground mb-1.5 uppercase tracking-wide">
             Module <span className="text-red-500">*</span>
           </label>
           {modules.length > 0 ? (
@@ -173,7 +158,7 @@ export default function CreateAssignmentPage() {
               value={moduleId}
               onChange={(e) => setModuleId(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
             >
               <option value="">— Select a module —</option>
               {modules.map((m) => (
@@ -192,9 +177,9 @@ export default function CreateAssignmentPage() {
                 value={moduleId}
                 onChange={(e) => setModuleId(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-muted-foreground">
                 e.g. 550e8400-e29b-41d4-a716-446655440000
               </p>
             </>
@@ -203,7 +188,7 @@ export default function CreateAssignmentPage() {
 
         {/* Class ID */}
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+          <label className="block text-xs font-bold text-foreground mb-1.5 uppercase tracking-wide">
             Class UUID <span className="text-red-500">*</span>
           </label>
           <input
@@ -212,37 +197,37 @@ export default function CreateAssignmentPage() {
             value={classId}
             onChange={(e) => setClassId(e.target.value)}
             required
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-border rounded-xl px-3 py-2.5 text-sm font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
           />
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-muted-foreground">
             The UUID of the class from your school&apos;s admin panel.
           </p>
         </div>
 
         {/* Due date */}
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
-            Due Date <span className="text-gray-400 font-normal">(optional)</span>
+          <label className="block text-xs font-bold text-foreground mb-1.5 uppercase tracking-wide">
+            Due Date <span className="text-muted-foreground font-normal">(optional)</span>
           </label>
           <input
             type="datetime-local"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
           />
         </div>
 
         {/* Instructions */}
         <div>
-          <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
-            Instructions <span className="text-gray-400 font-normal">(optional)</span>
+          <label className="block text-xs font-bold text-foreground mb-1.5 uppercase tracking-wide">
+            Instructions <span className="text-muted-foreground font-normal">(optional)</span>
           </label>
           <textarea
             placeholder="E.g. Complete the projectile motion simulation and note down your observations."
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             rows={4}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
           />
         </div>
 
@@ -250,25 +235,15 @@ export default function CreateAssignmentPage() {
         <button
           type="submit"
           disabled={submitState === "loading"}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold text-sm py-3 rounded-xl transition-colors shadow-md"
+          className="w-full bg-primary hover:bg-primary/90 disabled:opacity-60 text-primary-foreground font-bold text-sm py-3 rounded-xl transition-colors shadow-md cursor-pointer"
         >
           {submitState === "loading" ? "Creating…" : "Create Assignment"}
         </button>
       </form>
-
-      {/* Auth hint */}
-      <p className="mt-4 text-xs text-gray-400 text-center">
-        Sign in at{" "}
-        <a
-          href="http://localhost:5173/login"
-          target="_blank"
-          rel="noreferrer"
-          className="text-indigo-500 hover:underline"
-        >
-          the student app
-        </a>{" "}
-        with your teacher account to authenticate.
-      </p>
     </div>
   );
 }
+
+export const Route = createFileRoute("/teacher/assignments")({
+  component: CreateAssignmentPage,
+});

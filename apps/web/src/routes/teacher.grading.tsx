@@ -1,14 +1,5 @@
-"use client";
-
-/**
- * /assignments/grading — Assignments Grading Overview (Teacher Portal)
- *
- * Lists all assignments created by the logged-in teacher.
- * Fetches all submissions for each assignment to display the count of ungraded submissions.
- */
-
+import { createFileRoute, Link } from "@tanstack/react-router";
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import {
   ClipboardCheck,
   RefreshCw,
@@ -18,7 +9,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 interface Assignment {
   assignment_id: string;
@@ -34,7 +25,7 @@ interface AssignmentStats extends Assignment {
   ungradedCount: number;
 }
 
-export default function GradingOverviewPage() {
+function GradingOverviewPage() {
   const [assignments, setAssignments] = useState<AssignmentStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -45,13 +36,12 @@ export default function GradingOverviewPage() {
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     if (!token) {
-      setErrorMsg("No auth token found. Please sign in at the student web app first to authenticate.");
+      setErrorMsg("No auth token found. Please sign in first.");
       setLoading(false);
       return;
     }
 
     try {
-      // 1. Fetch all modules to map titles
       const modulesRes = await fetch(`${API_BASE}/api/modules`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -64,7 +54,6 @@ export default function GradingOverviewPage() {
         });
       }
 
-      // 2. Fetch all assignments
       const assignmentsRes = await fetch(`${API_BASE}/api/assignments/all`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -74,7 +63,6 @@ export default function GradingOverviewPage() {
       const assignmentsData = await assignmentsRes.json();
       const rawAssignments: Assignment[] = assignmentsData.assignments ?? [];
 
-      // 3. For each assignment, fetch its submissions to count ungraded
       const statsList: AssignmentStats[] = await Promise.all(
         rawAssignments.map(async (a) => {
           try {
@@ -118,101 +106,93 @@ export default function GradingOverviewPage() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
+    <div className="space-y-8 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-            <ClipboardCheck className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
+            <ClipboardCheck className="w-6 h-6 text-primary" />
             Grading Center
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Review student submissions, assign scores, and submit comments.
           </p>
         </div>
         <button
           onClick={fetchData}
-          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs rounded-xl shadow-sm transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 border border-border bg-card hover:bg-secondary text-foreground font-semibold text-xs rounded-xl shadow-sm transition-colors cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Refresh Assignments
         </button>
       </div>
 
-      {/* Errors */}
       {errorMsg && (
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-sm">
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400 text-sm">
           <div className="font-bold mb-1">Authentication Required</div>
           {errorMsg}
         </div>
       )}
 
-      {/* Roster list */}
       {!loading && assignments.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {assignments.map((a) => {
             const hasUngraded = a.ungradedCount > 0;
-
             return (
               <div
                 key={a.assignment_id}
-                className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden group"
+                className="bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow relative overflow-hidden group"
               >
                 <div>
-                  {/* Title and class info */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="space-y-1">
-                      <h3 className="font-bold text-sm text-gray-900 group-hover:text-indigo-600 transition-colors">
+                      <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
                         {a.moduleTitle}
                       </h3>
-                      <p className="text-xs text-gray-400 font-mono">
+                      <p className="text-xs text-muted-foreground font-mono">
                         CLASS ID: {a.class_id}
                       </p>
                     </div>
                     {hasUngraded ? (
-                      <span className="shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                      <span className="shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
                         {a.ungradedCount} Ungraded
                       </span>
                     ) : (
-                      <span className="shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                      <span className="shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/10 text-green-400 border border-green-500/20">
                         All Graded
                       </span>
                     )}
                   </div>
 
-                  {/* Submission and date stats */}
-                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 mb-4 grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-secondary/35 rounded-xl p-4 border border-border/10 mb-4 grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider block">
+                      <span className="text-muted-foreground font-bold uppercase text-[9px] tracking-wider block">
                         Submissions
                       </span>
-                      <span className="font-semibold text-gray-800 flex items-center gap-1 mt-0.5">
-                        <Layers className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="font-semibold text-foreground flex items-center gap-1 mt-0.5">
+                        <Layers className="w-3.5 h-3.5 text-muted-foreground" />
                         {a.totalSubmissions} total
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider block">
+                      <span className="text-muted-foreground font-bold uppercase text-[9px] tracking-wider block">
                         Due Date
                       </span>
-                      <span className="font-semibold text-gray-800 flex items-center gap-1 mt-0.5">
-                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                        {a.due_date
-                          ? new Date(a.due_date).toLocaleDateString()
-                          : "No due date"}
+                      <span className="font-semibold text-foreground flex items-center gap-1 mt-0.5">
+                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                        {a.due_date ? new Date(a.due_date).toLocaleDateString() : "No due date"}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer link to grade */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-2">
-                  <span className="text-[10px] text-gray-400 font-mono">
+                <div className="flex items-center justify-between pt-4 border-t border-border/10 mt-2">
+                  <span className="text-[10px] text-muted-foreground font-mono">
                     ASSIGNMENT ID: {a.assignment_id.slice(0, 8)}...
                   </span>
                   <Link
-                    href={`/assignments/grading/${a.assignment_id}`}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:translate-x-0.5 transition-all"
+                    to="/teacher/grading/$assignmentId"
+                    params={{ assignmentId: a.assignment_id }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary/80 hover:translate-x-0.5 transition-all"
                   >
                     Grade Submissions <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
@@ -223,25 +203,23 @@ export default function GradingOverviewPage() {
         </div>
       )}
 
-      {/* Loading State */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-500">
-          <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
           <p className="text-sm font-semibold">Loading assignments...</p>
         </div>
       )}
 
-      {/* Empty assignments list */}
       {!loading && assignments.length === 0 && !errorMsg && (
-        <div className="flex flex-col items-center justify-center border border-gray-200 border-dashed rounded-3xl p-12 text-center bg-white max-w-md mx-auto">
-          <FolderOpen className="w-12 h-12 text-gray-300 mb-3" />
-          <h3 className="text-sm font-bold text-gray-900 mb-1">No assignments created yet</h3>
-          <p className="text-xs text-gray-500 mb-4">
+        <div className="flex flex-col items-center justify-center border border-border border-dashed rounded-3xl p-12 text-center bg-card max-w-md mx-auto">
+          <FolderOpen className="w-12 h-12 text-muted-foreground mb-3" />
+          <h3 className="text-sm font-bold text-foreground mb-1">No assignments created yet</h3>
+          <p className="text-xs text-muted-foreground mb-4">
             Create your first class assignment using the module builder form.
           </p>
           <Link
-            href="/assignments"
-            className="inline-flex items-center gap-1 px-4 py-2 border border-transparent bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors"
+            to="/teacher/assignments"
+            className="inline-flex items-center gap-1 px-4 py-2 border border-transparent bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs rounded-xl shadow-sm transition-colors"
           >
             Create Assignment
           </Link>
@@ -250,3 +228,7 @@ export default function GradingOverviewPage() {
     </div>
   );
 }
+
+export const Route = createFileRoute("/teacher/grading")({
+  component: GradingOverviewPage,
+});
