@@ -44,6 +44,7 @@ import { Route as TeacherAssignmentsRouteImport } from './routes/teacher.assignm
 import { Route as TeacherAttendanceRouteImport } from './routes/teacher.attendance'
 import { Route as TeacherFeedRouteImport } from './routes/teacher.feed'
 import { Route as TeacherGradingRouteImport } from './routes/teacher.grading'
+import { Route as TeacherLoginRouteImport } from './routes/teacher.login'
 import { Route as TeacherMonitoringRouteImport } from './routes/teacher.monitoring'
 import { Route as ChaptersClassIdSubjectRouteImport } from './routes/chapters.$classId.$subject'
 import { Route as TeacherGradingAssignmentIdRouteImport } from './routes/teacher.grading.$assignmentId'
@@ -225,6 +226,11 @@ const TeacherGradingRoute = TeacherGradingRouteImport.update({
   path: '/grading',
   getParentRoute: () => TeacherRoute,
 } as any)
+const TeacherLoginRoute = TeacherLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => TeacherRoute,
+} as any)
 const TeacherMonitoringRoute = TeacherMonitoringRouteImport.update({
   id: '/monitoring',
   path: '/monitoring',
@@ -289,6 +295,7 @@ export interface FileRoutesByFullPath {
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/teacher/feed': typeof TeacherFeedRoute
   '/teacher/grading': typeof TeacherGradingRouteWithChildren
+  '/teacher/login': typeof TeacherLoginRoute
   '/teacher/monitoring': typeof TeacherMonitoringRouteWithChildren
   '/simulations/': typeof SimulationsIndexRoute
   '/chapters/$classId/$subject': typeof ChaptersClassIdSubjectRoute
@@ -330,6 +337,7 @@ export interface FileRoutesByTo {
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/teacher/feed': typeof TeacherFeedRoute
   '/teacher/grading': typeof TeacherGradingRouteWithChildren
+  '/teacher/login': typeof TeacherLoginRoute
   '/teacher/monitoring': typeof TeacherMonitoringRouteWithChildren
   '/simulations': typeof SimulationsIndexRoute
   '/chapters/$classId/$subject': typeof ChaptersClassIdSubjectRoute
@@ -373,6 +381,7 @@ export interface FileRoutesById {
   '/teacher/attendance': typeof TeacherAttendanceRoute
   '/teacher/feed': typeof TeacherFeedRoute
   '/teacher/grading': typeof TeacherGradingRouteWithChildren
+  '/teacher/login': typeof TeacherLoginRoute
   '/teacher/monitoring': typeof TeacherMonitoringRouteWithChildren
   '/simulations/': typeof SimulationsIndexRoute
   '/chapters/$classId/$subject': typeof ChaptersClassIdSubjectRoute
@@ -417,6 +426,7 @@ export interface FileRouteTypes {
     | '/teacher/attendance'
     | '/teacher/feed'
     | '/teacher/grading'
+    | '/teacher/login'
     | '/teacher/monitoring'
     | '/simulations/'
     | '/chapters/$classId/$subject'
@@ -458,6 +468,7 @@ export interface FileRouteTypes {
     | '/teacher/attendance'
     | '/teacher/feed'
     | '/teacher/grading'
+    | '/teacher/login'
     | '/teacher/monitoring'
     | '/simulations'
     | '/chapters/$classId/$subject'
@@ -500,6 +511,7 @@ export interface FileRouteTypes {
     | '/teacher/attendance'
     | '/teacher/feed'
     | '/teacher/grading'
+    | '/teacher/login'
     | '/teacher/monitoring'
     | '/simulations/'
     | '/chapters/$classId/$subject'
@@ -784,6 +796,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherGradingRouteImport
       parentRoute: typeof TeacherRoute
     }
+    '/teacher/login': {
+      id: '/teacher/login'
+      path: '/login'
+      fullPath: '/teacher/login'
+      preLoaderRoute: typeof TeacherLoginRouteImport
+      parentRoute: typeof TeacherRoute
+    }
     '/teacher/monitoring': {
       id: '/teacher/monitoring'
       path: '/monitoring'
@@ -900,6 +919,7 @@ interface TeacherRouteChildren {
   TeacherAttendanceRoute: typeof TeacherAttendanceRoute
   TeacherFeedRoute: typeof TeacherFeedRoute
   TeacherGradingRoute: typeof TeacherGradingRouteWithChildren
+  TeacherLoginRoute: typeof TeacherLoginRoute
   TeacherMonitoringRoute: typeof TeacherMonitoringRouteWithChildren
 }
 
@@ -908,6 +928,7 @@ const TeacherRouteChildren: TeacherRouteChildren = {
   TeacherAttendanceRoute: TeacherAttendanceRoute,
   TeacherFeedRoute: TeacherFeedRoute,
   TeacherGradingRoute: TeacherGradingRouteWithChildren,
+  TeacherLoginRoute: TeacherLoginRoute,
   TeacherMonitoringRoute: TeacherMonitoringRouteWithChildren,
 }
 

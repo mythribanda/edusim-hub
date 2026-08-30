@@ -48,9 +48,9 @@ export default function FormulaGraph({ formulaDef }: Props) {
   // Derive axis labels based on formula mapping.
   // For F=ma: x could be a (Acceleration), y could be F (Force), with m as constant.
   const vars = Object.entries(formulaDef.variables);
-  const yAxisLabel = vars.length > 0 ? vars[0][1] : "Y";
-  const xAxisLabel = vars.length > 2 ? vars[2][1] : "X";
-  const constantLabel = vars.length > 1 ? vars[1][1] : "Constant";
+  const yAxisLabel = (vars.length > 0 ? vars[0][1] : "Y") as string;
+  const xAxisLabel = (vars.length > 2 ? vars[2][1] : "X") as string;
+  const constantLabel = (vars.length > 1 ? vars[1][1] : "Constant") as string;
 
   return (
     <div className="w-full h-full flex flex-col">

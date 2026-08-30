@@ -103,7 +103,7 @@ export function useAgentSimulation(): UseAgentSimulationState & UseAgentSimulati
       try {
         await agentSimulationService.generateStream(
           prompt,
-          (progressUpdate) => {
+          (progressUpdate: AgentStreamProgress) => {
             setProgress(progressUpdate);
 
             if (progressUpdate.progress !== undefined) {
@@ -122,7 +122,7 @@ export function useAgentSimulation(): UseAgentSimulationState & UseAgentSimulati
               setLoading(false);
             }
           },
-          (result) => {
+          (result: AgentGeneratedSimulation) => {
             setSimulation(result);
             setError(null);
             setStreaming(false);

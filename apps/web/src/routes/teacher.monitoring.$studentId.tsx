@@ -44,7 +44,7 @@ function StudentActivityLogPage() {
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
     if (!token) return;
 
     fetch(`${API_BASE}/api/class/students`, {
@@ -63,7 +63,7 @@ function StudentActivityLogPage() {
   const fetchLogs = useCallback(async (currentPage: number) => {
     setLoading(true);
     setErrorMsg("");
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
 
     if (!token) {
       setErrorMsg("No auth token found. Please authenticate first.");

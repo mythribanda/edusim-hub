@@ -5,5 +5,11 @@
   "scripts": {
     "//": "Convenience wrapper. Canonical way to run is: uvicorn main:app --reload --port 8001",
     "dev": "uvicorn main:app --reload --port 8001 --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^4.17.21",
+    "@types/pg": "^8.11.0",
+    "@types/uuid": "^9.0.8"
   }
 }

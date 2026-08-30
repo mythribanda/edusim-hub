@@ -28,7 +28,7 @@ function CreateAssignmentPage() {
   const [loadingModules, setLoadingModules] = useState(false);
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
     if (!token) return;
 
     setLoadingModules(true);
@@ -50,7 +50,7 @@ function CreateAssignmentPage() {
     setResult(null);
 
     const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
 
     if (!token) {
       setErrorMsg(

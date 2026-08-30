@@ -146,9 +146,10 @@ function AttendancePage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isViewingExisting, setIsViewingExisting] = useState(false);
   const [classId, setClassId] = useState<string | null>(null);
+  const [savedRecords, setSavedRecords] = useState<Record<string, any>>({});
 
   const loadRoster = useCallback(async () => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
     if (!token) {
       setErrorMsg("No auth token. Please sign in first.");
       setPageState("error");
@@ -160,6 +161,7 @@ function AttendancePage() {
     setSavedCounts(null);
     setIsViewingExisting(false);
     setIsEditMode(false);
+    setSavedRecords({});
 
     try {
       // 1. Fetch roster
@@ -196,6 +198,7 @@ function AttendancePage() {
         );
         if (savedRes.ok) {
           const saved: ForDateResponse = await savedRes.json();
+          setSavedRecords(saved.by_student);
           // Overlay saved statuses
           for (const [sid, rec] of Object.entries(saved.by_student)) {
             if (defaultStatuses[sid] !== undefined) {
@@ -244,7 +247,7 @@ function AttendancePage() {
       setPageState("error");
       return;
     }
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
     if (!token) {
       setErrorMsg("No auth token. Please sign in first.");
       setPageState("error");
@@ -294,8 +297,13 @@ function AttendancePage() {
   };
 
   const markAll = (status: AttendanceStatus) => {
-    const next: Record<string, AttendanceStatus> = {};
-    for (const s of students) next[s.id] = status;
+    const next = { ...statuses };
+    for (const s of students) {
+      const isLocked = savedRecords[s.id] && !savedRecords[s.id].can_edit;
+      if (!isLocked) {
+        next[s.id] = status;
+      }
+    }
     setStatuses(next);
   };
 
@@ -463,7 +471,7 @@ function AttendancePage() {
                   <StatusToggle
                     value={current}
                     onChange={(s) => setStatuses((prev) => ({ ...prev, [student.id]: s }))}
-                    disabled={isFormDisabled}
+                    disabled={isFormDisabled || (savedRecords[student.id] && !savedRecords[student.id].can_edit)}
                   />
                 </div>
               );

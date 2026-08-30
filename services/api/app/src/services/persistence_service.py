@@ -54,7 +54,9 @@ def resolve_user_from_authorization(authorization: Optional[str], db: Session) -
         return admin_user
 
     payload = decode_token(token)
-    if not payload or payload.get("type") != "access":
+    if not payload:
+        return None
+    if payload.get("type") == "refresh":
         return None
 
     user_id = payload.get("sub")

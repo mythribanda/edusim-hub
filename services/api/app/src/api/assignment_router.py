@@ -15,7 +15,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -318,6 +318,105 @@ def create_submission(
         db.rollback()
         logger.warning("[submissions] Failed to create submission: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to record submission.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /assignments/submissions — Fetch submissions for multiple assignments in batch
+# ─────────────────────────────────────────────────────────────────────────────
+
+@assignment_router.get("/assignments/submissions")
+def get_batch_submissions(
+    assignment_ids: str = Query(..., description="Comma-separated list of assignment UUIDs"),
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Get all submissions for multiple assignments in a single request.
+    Gated to the teacher who created the assignments (or admins).
+    """
+    user = require_user(authorization, db)
+    
+    # Parse UUIDs
+    try:
+        uuid_strings = [s.strip() for s in assignment_ids.split(",") if s.strip()]
+        assignment_uuids = [uuid.UUID(uid) for uid in uuid_strings]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid UUID format in assignment_ids query parameter.",
+        )
+
+    if not assignment_uuids:
+        return {"submissions": {}}
+
+    # Fetch all requested assignments to check security/module titles
+    assignments = db.query(Assignment).filter(Assignment.id.in_(assignment_uuids)).all()
+    assignments_map = {a.id: a for a in assignments}
+
+    # Security check: creator only
+    is_admin = getattr(user, "role", None) in ("admin", "superadmin")
+    for a in assignments:
+        if a.created_by != user.id and not is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail=f"You are not authorized to view submissions for assignment {a.id}.",
+            )
+
+    # Fetch all submissions for these assignments
+    submissions = db.query(Submission).filter(Submission.assignment_id.in_(assignment_uuids)).order_by(Submission.completed_at.desc()).all()
+
+    # Join student names/emails
+    from app.src.models.user import User
+    student_ids = [s.student_id for s in submissions]
+    student_map = {}
+    if student_ids:
+        students = db.query(User).filter(User.id.in_(student_ids)).all()
+        student_map = {st.id: st for st in students}
+
+    # Fetch module titles
+    module_ids = list({a.module_id for a in assignments})
+    module_title_map = {}
+    if module_ids:
+        from sqlalchemy import text
+        try:
+            rows = db.execute(
+                text("SELECT id, title FROM modules WHERE id = ANY(:ids)"),
+                {"ids": [str(mid) for mid in module_ids]}
+            ).fetchall()
+            module_title_map = {row[0]: row[1] for row in rows}
+        except Exception:
+            pass
+
+    # Group submissions by assignment_id
+    grouped_submissions = {str(uid): [] for uid in assignment_uuids}
+    for s in submissions:
+        student = student_map.get(s.student_id)
+        grouped_submissions[str(s.assignment_id)].append({
+            "submission_id": str(s.id),
+            "assignment_id": str(s.assignment_id),
+            "student_id": str(s.student_id),
+            "student_name": student.name if student else "Unknown Student",
+            "student_email": student.email if student else "",
+            "answers": s.answers,
+            "score": s.score,
+            "comment": s.comment,
+            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+            "graded_at": s.graded_at.isoformat() if s.graded_at else None,
+        })
+
+    # Construct response
+    result = {}
+    for uid in assignment_uuids:
+        a = assignments_map.get(uid)
+        m_title = module_title_map.get(str(a.module_id)) if a else None
+        result[str(uid)] = {
+            "assignment_id": str(uid),
+            "module_id": str(a.module_id) if a else None,
+            "module_title": m_title or "Interactive Physics Module",
+            "submissions": grouped_submissions.get(str(uid), []),
+        }
+
+    return {"submissions": result}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>) => {
+  validateSearch: (search: Record<string, unknown>): { verify_token?: string; reset_token?: string } => {
     return {
       verify_token: (search.verify_token as string) || undefined,
       reset_token: (search.reset_token as string) || undefined,

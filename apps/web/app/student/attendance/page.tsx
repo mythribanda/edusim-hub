@@ -1,5 +1,5 @@
 "use client";
-import { StudentAttendancePage } from "../../src/institutional/pages/attendance/StudentAttendancePage";
+import { StudentAttendancePage } from "../../../src/institutional/pages/attendance/StudentAttendancePage";
 export default function Page() {
   return <StudentAttendancePage />;
 }

@@ -9,7 +9,7 @@
 
 import { Router, Request, Response, NextFunction } from "express";
 import * as db from "./db-service";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 import { v4 as uuid } from "uuid";
 
 export const router = Router();
@@ -36,7 +36,7 @@ async function requireAuth(req: Request, res: Response, next: NextFunction) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** POST /api/auth/register */
-router.post("/auth/register", async (req, res) => {
+router.post("/auth/register", async (req: Request, res: Response) => {
   try {
     const { name, email, password, mobile_number, role } = req.body;
     const password_hash = await bcrypt.hash(password, 12);
@@ -48,7 +48,7 @@ router.post("/auth/register", async (req, res) => {
 });
 
 /** POST /api/auth/login */
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -81,7 +81,7 @@ router.post("/auth/login", async (req, res) => {
 });
 
 /** POST /api/auth/logout */
-router.post("/auth/logout", requireAuth, async (req, res) => {
+router.post("/auth/logout", requireAuth, async (req: Request, res: Response) => {
   const key = req.headers["x-session-key"] as string;
   await db.endSession(key);
   res.json({ ok: true });
@@ -92,13 +92,13 @@ router.post("/auth/logout", requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** GET /api/settings */
-router.get("/settings", requireAuth, async (req, res) => {
+router.get("/settings", requireAuth, async (req: Request, res: Response) => {
   const settings = await db.getSettings((req as any).userId);
   res.json({ settings });
 });
 
 /** PUT /api/settings  – body: { key, value } or { settings: { key: value } } */
-router.put("/settings", requireAuth, async (req, res) => {
+router.put("/settings", requireAuth, async (req: Request, res: Response) => {
   const userId = (req as any).userId;
   if (req.body.settings) {
     await db.saveSettings(userId, req.body.settings);
@@ -123,7 +123,7 @@ router.put("/settings", requireAuth, async (req, res) => {
  *
  * Per spec: full AI response is NOT saved.
  */
-router.post("/tutor/interact", requireAuth, async (req, res) => {
+router.post("/tutor/interact", requireAuth, async (req: Request, res: Response) => {
   try {
     const { session_id, topic, content, summary, class_name, subject } = req.body;
     const row = await db.saveTutorInteraction({
@@ -142,7 +142,7 @@ router.post("/tutor/interact", requireAuth, async (req, res) => {
 });
 
 /** GET /api/tutor/history?limit=50 */
-router.get("/tutor/history", requireAuth, async (req, res) => {
+router.get("/tutor/history", requireAuth, async (req: Request, res: Response) => {
   const limit = Number(req.query.limit) || 50;
   const history = await db.getTutorHistory((req as any).userId, limit);
   res.json({ history });
@@ -157,7 +157,7 @@ router.get("/tutor/history", requireAuth, async (req, res) => {
  * Body: { simulation_id, title, description, score, completion_percentage, time_spent }
  * Saves metadata only – no physics/UI state per spec.
  */
-router.post("/simulations", requireAuth, async (req, res) => {
+router.post("/simulations", requireAuth, async (req: Request, res: Response) => {
   try {
     const { simulation_id, title, description, score, completion_percentage, time_spent } =
       req.body;
@@ -177,7 +177,7 @@ router.post("/simulations", requireAuth, async (req, res) => {
 });
 
 /** GET /api/simulations/history */
-router.get("/simulations/history", requireAuth, async (req, res) => {
+router.get("/simulations/history", requireAuth, async (req: Request, res: Response) => {
   const history = await db.getSimulationHistory((req as any).userId);
   res.json({ history });
 });
@@ -187,20 +187,20 @@ router.get("/simulations/history", requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** GET /api/curriculum/:classId  – full tree: subjects → chapters → topics */
-router.get("/curriculum/:classId", requireAuth, async (req, res) => {
+router.get("/curriculum/:classId", requireAuth, async (req: Request, res: Response) => {
   const curriculum = await db.getCurriculumForClass(req.params.classId);
   res.json({ curriculum });
 });
 
 /** GET /api/curriculum/:classId/:subjectCode/chapters */
-router.get("/curriculum/:classId/:subjectCode/chapters", requireAuth, async (req, res) => {
+router.get("/curriculum/:classId/:subjectCode/chapters", requireAuth, async (req: Request, res: Response) => {
   const chapters = await db.getChapters(req.params.subjectCode, req.params.classId);
   res.json({ chapters });
 });
 
 /** GET /api/curriculum/chapters/:chapterId/topics */
-router.get("/curriculum/chapters/:chapterId/topics", requireAuth, async (req, res) => {
-  const topics = await db.getTopics(Number(req.params.chapterId));
+router.get("/curriculum/chapters/:chapterId/topics", requireAuth, async (req: Request, res: Response) => {
+  const topics = await db.getTopics(req.params.chapterId);
   res.json({ topics });
 });
 

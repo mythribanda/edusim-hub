@@ -21,6 +21,7 @@ export interface Reply {
   content: string;
   created_at: string;
   author: Author;
+  reactions: Record<string, string[]>;
 }
 
 export interface ClassPost {
@@ -30,6 +31,8 @@ export interface ClassPost {
   created_at: string;
   author: Author;
   replies: Reply[];
+  reactions: Record<string, string[]>;
+  is_reflection?: boolean;
 }
 
 /**
@@ -65,7 +68,8 @@ export async function getClassPosts(
 export async function createClassPost(
   token: string | null,
   classId: string,
-  content: string
+  content: string,
+  isReflection?: boolean
 ): Promise<{ success: boolean; post_id?: string } | null> {
   if (!token) return null;
   try {
@@ -75,7 +79,7 @@ export async function createClassPost(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ class_id: classId, content }),
+      body: JSON.stringify({ class_id: classId, content, is_reflection: isReflection }),
     });
     if (!res.ok) {
       console.warn("[classFeedService] createClassPost failed:", res.status);

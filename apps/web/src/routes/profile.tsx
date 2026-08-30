@@ -281,7 +281,7 @@ function ProfilePage() {
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="relative group shrink-0">
               <Avatar className="w-32 h-32 border-4 border-border shadow-2xl animate-fade-in">
-                <AvatarImage src={authUser?.avatar} />
+                <AvatarImage src={authUser?.avatar ?? undefined} />
                 <AvatarFallback className="text-4xl bg-gradient-to-br from-[var(--neon-purple)]/20 to-[var(--neon-blue)]/20 text-foreground font-bold">
                   {getInitials(authUser?.name || "User")}
                 </AvatarFallback>

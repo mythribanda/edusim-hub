@@ -48,7 +48,7 @@ function ClassMonitoringPage() {
   const fetchStudents = async () => {
     setLoading(true);
     setErrorMsg("");
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
 
     if (!token) {
       setErrorMsg("No auth token found. Please sign in first.");
@@ -77,6 +77,40 @@ function ClassMonitoringPage() {
           currentModuleTitle: "",
         };
       });
+
+      // Fetch the latest event for each student in parallel
+      await Promise.all(
+        list.map(async (student) => {
+          try {
+            const eventsRes = await fetch(
+              `${API_BASE}/api/class/students/${student.id}/events?page=1&limit=1`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (eventsRes.ok) {
+              const data = await eventsRes.json();
+              const latestEvent = data.events?.[0];
+              if (latestEvent) {
+                const event_type = latestEvent.event_type;
+                let actionLabel = event_type;
+                if (event_type === "started") actionLabel = "Started module";
+                else if (event_type === "answered") actionLabel = "Answered scenario question";
+                else if (event_type === "completed") actionLabel = "Completed module successfully";
+                else if (event_type === "asked_tutor") actionLabel = "Asked AI Tutor for help";
+
+                initialActivities[student.id] = {
+                  lastActionType: actionLabel,
+                  lastActionTime: latestEvent.created_at || "",
+                  currentModuleId: latestEvent.module_id || "",
+                  currentModuleTitle: latestEvent.payload?.module_title || latestEvent.module_title || "Interactive Physics Module",
+                };
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to fetch initial events for student ${student.id}:`, err);
+          }
+        })
+      );
+
       setActivities(initialActivities);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "An error occurred while loading students.");
@@ -91,16 +125,28 @@ function ClassMonitoringPage() {
 
   useEffect(() => {
     const isMock = !import.meta.env.VITE_SUPABASE_URL;
-    if (isMock) return;
+    if (isMock || students.length === 0) return;
 
-    const channel = supabase
-      .channel("monitoring_events")
-      .on(
+    let channel = supabase.channel("monitoring_events");
+
+    // Add subscription filters for each student in the roster
+    students.forEach((student) => {
+      channel = channel.on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "session_events" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "session_events",
+          filter: `student_id=eq.${student.id}`,
+        },
         (payload) => {
           const newEvent = payload.new as any;
           const studentId = newEvent.student_id;
+
+          // Validate student belongs to the teacher's roster
+          const isStudentInRoster = students.some((s) => s.id === studentId);
+          if (!isStudentInRoster) return;
+
           const module_id = newEvent.module_id;
           const event_type = newEvent.event_type;
           const created_at = newEvent.created_at;
@@ -127,8 +173,10 @@ function ClassMonitoringPage() {
             };
           });
         }
-      )
-      .subscribe();
+      );
+    });
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);

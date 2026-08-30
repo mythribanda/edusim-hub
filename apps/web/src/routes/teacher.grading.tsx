@@ -33,7 +33,7 @@ function GradingOverviewPage() {
   const fetchData = async () => {
     setLoading(true);
     setErrorMsg("");
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
 
     if (!token) {
       setErrorMsg("No auth token found. Please sign in first.");
@@ -63,35 +63,34 @@ function GradingOverviewPage() {
       const assignmentsData = await assignmentsRes.json();
       const rawAssignments: Assignment[] = assignmentsData.assignments ?? [];
 
-      const statsList: AssignmentStats[] = await Promise.all(
-        rawAssignments.map(async (a) => {
-          try {
-            const subsRes = await fetch(`${API_BASE}/api/assignments/${a.assignment_id}/submissions`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (subsRes.ok) {
-              const subsData = await subsRes.json();
-              const submissions = subsData.submissions ?? [];
-              const totalSubmissions = submissions.length;
-              const ungradedCount = submissions.filter((s: { graded_at: string | null }) => !s.graded_at).length;
-              return {
-                ...a,
-                moduleTitle: moduleMap[a.module_id] || subsData.module_title || "Interactive Physics Module",
-                totalSubmissions,
-                ungradedCount,
-              };
-            }
-          } catch (err) {
-            console.error(`Error loading stats for assignment ${a.assignment_id}:`, err);
-          }
-          return {
-            ...a,
-            moduleTitle: moduleMap[a.module_id] || "Interactive Physics Module",
-            totalSubmissions: 0,
-            ungradedCount: 0,
-          };
-        })
-      );
+      let statsList: AssignmentStats[] = [];
+
+      if (rawAssignments.length > 0) {
+        const assignmentIds = rawAssignments.map((a) => a.assignment_id).join(",");
+        const batchRes = await fetch(
+          `${API_BASE}/api/assignments/submissions?assignment_ids=${encodeURIComponent(assignmentIds)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (batchRes.ok) {
+          const batchData = await batchRes.json();
+          const batchMap = batchData.submissions ?? {};
+          statsList = rawAssignments.map((a) => {
+            const batchInfo = batchMap[a.assignment_id] ?? {};
+            const submissions = batchInfo.submissions ?? [];
+            const totalSubmissions = submissions.length;
+            const ungradedCount = submissions.filter((s: { graded_at: string | null }) => !s.graded_at).length;
+            return {
+              ...a,
+              moduleTitle: moduleMap[a.module_id] || batchInfo.module_title || "Interactive Physics Module",
+              totalSubmissions,
+              ungradedCount,
+            };
+          });
+        } else {
+          throw new Error(`Failed to load batch submissions (${batchRes.status})`);
+        }
+      }
 
       setAssignments(statsList);
     } catch (err: unknown) {

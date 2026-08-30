@@ -225,17 +225,12 @@ def create_class_post(
         )
 
     # Resolve class_id
-    class_uuid = None
-    if body.class_id:
-        class_uuid = _parse_uuid(body.class_id, "class_id")
-    elif getattr(user, "class_id", None):
-        class_uuid = user.class_id
-
-    if not class_uuid:
+    if not body.class_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No class_id provided and you are not assigned to a class.",
+            detail="class_id is required.",
         )
+    class_uuid = _parse_uuid(body.class_id, "class_id")
 
     # Teachers must post to their own class
     if user.role == UserRole.TEACHER and user.class_id != class_uuid:

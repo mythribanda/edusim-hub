@@ -43,7 +43,7 @@ function AssignmentGradingPage() {
   const fetchSubmissions = useCallback(async () => {
     setLoading(true);
     setErrorMsg("");
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
 
     if (!token) {
       setErrorMsg("No auth token found. Please authenticate first.");
@@ -93,7 +93,7 @@ function AssignmentGradingPage() {
     }
 
     setSubmittingIds((prev) => ({ ...prev, [subId]: true }));
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
 
     try {
       const res = await fetch(`${API_BASE}/api/submissions/${subId}/grade`, {

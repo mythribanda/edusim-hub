@@ -8,7 +8,7 @@ import {
   deleteClassPost, 
   type ClassPost,
   type Reply 
-} from "@/lib/classFeedService";
+} from "@/services/classFeedService";
 import { MessageSquare, Send, Calendar, RefreshCw, AlertCircle, Trash2, Sparkles, BarChart2, Reply as ReplyIcon } from "lucide-react";
 
 function TeacherFeedPage() {
@@ -21,6 +21,7 @@ function TeacherFeedPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [token, setToken] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [classId, setClassId] = useState<string>("");
   const [selectedRollupPost, setSelectedRollupPost] = useState<ClassPost | null>(null);
 
   const fetchFeed = async (authToken: string) => {
@@ -29,21 +30,56 @@ function TeacherFeedPage() {
     try {
       const feed = await getClassPosts(authToken);
       setPosts(feed);
+      return feed;
     } catch {
       setErrorMsg("Failed to load class feed.");
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const t = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const t = typeof window !== "undefined" ? localStorage.getItem("teacher_token") : null;
     setToken(t);
     if (t) {
       try {
         const payload = JSON.parse(atob(t.split(".")[1]));
         setCurrentUserId(payload.sub || "");
       } catch {}
+
+      // Get classId from teacher_user or fetch profile
+      let resolvedClassId = "";
+      try {
+        const userStr = localStorage.getItem("teacher_user");
+        if (userStr) {
+          const userObj = JSON.parse(userStr);
+          if (userObj.class_id) {
+            resolvedClassId = userObj.class_id;
+            setClassId(resolvedClassId);
+          }
+        }
+      } catch {}
+
+      const fetchProfileBackup = async () => {
+        try {
+          const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+          const res = await fetch(`${apiBase}/api/auth/profile`, {
+            headers: { Authorization: `Bearer ${t}` },
+          });
+          if (res.ok) {
+            const me = await res.json();
+            if (me.class_id) {
+              setClassId(me.class_id);
+            }
+          }
+        } catch {}
+      };
+
+      if (!resolvedClassId) {
+        fetchProfileBackup();
+      }
+
       fetchFeed(t);
     } else {
       setErrorMsg("No auth token found. Please sign in first.");
@@ -55,9 +91,14 @@ function TeacherFeedPage() {
     e.preventDefault();
     if (!newPostContent.trim() || !token) return;
 
+    if (!classId) {
+      setErrorMsg("Failed to post announcement. You are not assigned to a class.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const res = await createClassPost(token, "", newPostContent.trim(), isReflectionPrompt);
+      const res = await createClassPost(token, classId, newPostContent.trim(), isReflectionPrompt);
       if (res?.success) {
         setNewPostContent("");
         setIsReflectionPrompt(false);
@@ -81,7 +122,11 @@ function TeacherFeedPage() {
       const res = await replyToClassPost(token, postId, content);
       if (res?.success) {
         setReplyTexts((prev) => ({ ...prev, [postId]: "" }));
-        await fetchFeed(token);
+        const latestPosts = await fetchFeed(token);
+        if (selectedRollupPost) {
+          const updated = latestPosts.find(p => p.id === selectedRollupPost.id);
+          if (updated) setSelectedRollupPost(updated);
+        }
       } else {
         alert("Failed to send reply.");
       }
@@ -95,10 +140,10 @@ function TeacherFeedPage() {
     try {
       const res = await reactToClassPost(token, postId, emoji);
       if (res?.success) {
-        await fetchFeed(token);
+        const latestPosts = await fetchFeed(token);
         // Update selected rollup post if open
-        if (selectedRollupPost && selectedRollupPost.id === postId) {
-          const updated = posts.find(p => p.id === postId);
+        if (selectedRollupPost) {
+          const updated = latestPosts.find(p => p.id === selectedRollupPost.id);
           if (updated) setSelectedRollupPost(updated);
         }
       }

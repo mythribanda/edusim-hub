@@ -156,6 +156,8 @@ def mark_attendance(
                 if marked_at.tzinfo is None:
                     marked_at = marked_at.replace(tzinfo=timezone.utc)
                 if marked_at < two_hours_ago:
+                    if existing.status == entry.status:
+                        continue
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
                         detail=(
@@ -211,6 +213,14 @@ def get_attendance_for_date(
     Teacher / admin only.
     """
     _require_teacher(current_user)
+    role = _role(current_user)
+    if role == "teacher":
+        teacher_class = str(current_user.class_id) if current_user.class_id else None
+        if teacher_class != class_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access attendance for your own class.",
+            )
 
     query = db.query(Attendance).filter(
         Attendance.class_id == class_id,
@@ -220,15 +230,31 @@ def get_attendance_for_date(
         query = query.filter(Attendance.subject == subject)
 
     records = query.all()
-    serialized = [_serialize(r) for r in records]
+
+    now_utc = datetime.now(timezone.utc)
+    two_hours_ago = now_utc - timedelta(hours=2)
+
+    serialized = []
+    for r in records:
+        r_created = r.created_at
+        if r_created.tzinfo is None:
+            r_created = r_created.replace(tzinfo=timezone.utc)
+        
+        rec_can_edit = True
+        if role == "teacher":
+            rec_can_edit = r_created >= two_hours_ago
+
+        r_dict = _serialize(r)
+        r_dict["can_edit"] = rec_can_edit
+        serialized.append(r_dict)
 
     can_edit = True
-    if records and _role(current_user) == "teacher":
-        earliest = min((r.created_at for r in records), default=None)
-        if earliest:
-            if earliest.tzinfo is None:
-                earliest = earliest.replace(tzinfo=timezone.utc)
-            can_edit = earliest >= datetime.now(timezone.utc) - timedelta(hours=2)
+    if records and role == "teacher":
+        latest = max((r.created_at for r in records), default=None)
+        if latest:
+            if latest.tzinfo is None:
+                latest = latest.replace(tzinfo=timezone.utc)
+            can_edit = latest >= two_hours_ago
 
     return {
         "success": True,
@@ -306,6 +332,14 @@ def get_class_attendance(
     RBAC: teacher / admin only.
     """
     _require_teacher(current_user)
+    role = _role(current_user)
+    if role == "teacher":
+        teacher_class = str(current_user.class_id) if current_user.class_id else None
+        if teacher_class != class_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access attendance for your own class.",
+            )
 
     query = db.query(Attendance).filter(Attendance.class_id == class_id)
     if date:
@@ -334,6 +368,14 @@ def get_class_analytics(
     RBAC: teacher / admin only.
     """
     _require_teacher(current_user)
+    role = _role(current_user)
+    if role == "teacher":
+        teacher_class = str(current_user.class_id) if current_user.class_id else None
+        if teacher_class != class_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access attendance for your own class.",
+            )
 
     _, days_in_month = monthrange(year, month)
     from datetime import date as dt_date
