@@ -5,7 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.src.config.database import get_db
 from app.src.models.user import User, UserRole
-from app.src.api.auth import require_admin, require_student, require_educator
+from middleware.rbac import (
+    require_role,
+    require_class_member,
+    require_student_or_teacher,
+    require_admin,
+    require_educator,
+    require_student,
+)
 from pydantic import BaseModel
 
 logger = logging.getLogger("EduSim.users")
@@ -93,22 +100,17 @@ def get_student_class_events(
     student_id: UUID,
     page: int = 1,
     limit: int = 20,
-    educator_user: User = Depends(require_educator),
+    current_user: User = Depends(require_student_or_teacher("student_id")),
     db: Session = Depends(get_db)
 ):
     """
     Returns a paginated list of session events for a specific student in the educator's class.
+    Protected: student themselves or their authorized teacher/admin.
     """
-    # 1. Fetch student user to verify they are in the educator's class
+    # 1. Fetch student user to verify they exist
     student = db.query(User).filter(User.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found.")
-    
-    if student.class_id != educator_user.class_id:
-        raise HTTPException(
-            status_code=403,
-            detail="You are not authorized to view this student's activity log."
-        )
 
     # 2. Query session events
     from app.src.models.persistence import SessionEvent

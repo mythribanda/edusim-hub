@@ -15,27 +15,18 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from app.src.config.database import get_db
-from app.src.api.auth import get_current_user
 from app.src.models.user import User
 from app.src.models.persistence import WeeklyDigestLog
+from middleware.rbac import require_role
 
 logger = logging.getLogger("EduSim.digest_router")
 
 digest_router = APIRouter(prefix="/digest", tags=["Digest"])
 
 
-def _require_admin(current_user: User) -> None:
-    role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role not in ("admin", "superadmin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can trigger the weekly digest.",
-        )
-
-
 @digest_router.post("/trigger")
 async def trigger_digest(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("admin")),
 ):
     """
     Manually fire the weekly digest for all parents immediately.
@@ -44,7 +35,6 @@ async def trigger_digest(
     Note: idempotency still applies — if a digest was already sent this
     ISO week, only parents who haven't received it yet will get one.
     """
-    _require_admin(current_user)
     from app.src.jobs.weekly_digest import run_weekly_digest
     # Run in the background so the HTTP response returns immediately
     asyncio.create_task(run_weekly_digest())
@@ -53,14 +43,13 @@ async def trigger_digest(
 
 @digest_router.get("/status")
 def digest_status(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
     """
     Return the last 20 digest log entries (most recent first).
     Admin-only.
     """
-    _require_admin(current_user)
     rows = (
         db.query(WeeklyDigestLog)
         .order_by(desc(WeeklyDigestLog.sent_at))

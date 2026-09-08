@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -34,8 +34,15 @@ function decodeJwt(token: string) {
 function AuthCallbackComponent() {
   const { token, error } = Route.useSearch();
   const navigate = useNavigate();
+  const hasProcessedRef = useRef(false);
 
   useEffect(() => {
+    // Guard against React double-mount (StrictMode) firing OAuth callback twice
+    if (hasProcessedRef.current) {
+      return;
+    }
+    hasProcessedRef.current = true;
+
     if (error) {
       toast.error(`Authentication failed: ${error}`);
       navigate({ to: "/login" });

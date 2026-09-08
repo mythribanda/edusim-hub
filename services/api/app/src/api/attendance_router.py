@@ -30,6 +30,12 @@ from app.src.api.auth import get_current_user
 from app.src.config.database import get_db
 from app.src.models.attendance import Attendance
 from app.src.models.user import User
+from middleware.rbac import (
+    require_role,
+    require_class_member,
+    require_student_or_teacher,
+    check_class_membership,
+)
 
 logger = logging.getLogger("EduSim.attendance")
 
@@ -39,7 +45,7 @@ router = APIRouter(tags=["Attendance"])
 
 AttendanceStatus = Literal["present", "absent", "late"]
 
-TEACHER_ROLES = {"teacher", "admin", "superadmin"}
+TEACHER_ROLES = {"teacher", "admin", "superadmin", "educator"}
 STUDENT_ROLES = {"student"}
 PARENT_ROLES  = {"parent"}
 
@@ -99,7 +105,7 @@ class MarkAttendanceRequest(BaseModel):
 @router.post("/mark", status_code=status.HTTP_200_OK)
 def mark_attendance(
     body: MarkAttendanceRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("educator", "admin")),
     db: Session = Depends(get_db),
 ):
     """
@@ -113,7 +119,6 @@ def mark_attendance(
       3. Editing an already-saved record requires the original mark to be < 2 h ago.
          Admins bypass rules 2 and 3.
     """
-    _require_teacher(current_user)
     role = _role(current_user)
 
     # ── 1. No future dates ──────────────────────────────────────────────────
@@ -200,7 +205,8 @@ def get_attendance_for_date(
     class_id: str = Query(...),
     date: DateType = Query(...),
     subject: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("educator", "admin")),
+    _member: User = Depends(require_class_member(param_name="class_id")),
     db: Session = Depends(get_db),
 ):
     """
@@ -212,15 +218,7 @@ def get_attendance_for_date(
       - can_edit    — whether the 2-hour window is still open (teachers)
     Teacher / admin only.
     """
-    _require_teacher(current_user)
     role = _role(current_user)
-    if role == "teacher":
-        teacher_class = str(current_user.class_id) if current_user.class_id else None
-        if teacher_class != class_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only access attendance for your own class.",
-            )
 
     query = db.query(Attendance).filter(
         Attendance.class_id == class_id,
@@ -235,26 +233,15 @@ def get_attendance_for_date(
     two_hours_ago = now_utc - timedelta(hours=2)
 
     serialized = []
-    for r in records:
-        r_created = r.created_at
-        if r_created.tzinfo is None:
-            r_created = r_created.replace(tzinfo=timezone.utc)
-        
-        rec_can_edit = True
-        if role == "teacher":
-            rec_can_edit = r_created >= two_hours_ago
-
-        r_dict = _serialize(r)
-        r_dict["can_edit"] = rec_can_edit
-        serialized.append(r_dict)
-
     can_edit = True
     if records and role == "teacher":
-        latest = max((r.created_at for r in records), default=None)
-        if latest:
-            if latest.tzinfo is None:
-                latest = latest.replace(tzinfo=timezone.utc)
-            can_edit = latest >= two_hours_ago
+        earliest_mark = min(r.created_at for r in records if r.created_at)
+        can_edit = earliest_mark >= two_hours_ago
+
+    for r in records:
+        d = _serialize(r)
+        d["can_edit"] = can_edit if role == "teacher" else True
+        serialized.append(d)
 
     return {
         "success": True,
@@ -271,15 +258,12 @@ def get_student_attendance(
     student_id: UUID,
     subject: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_student_or_teacher("student_id")),
     db: Session = Depends(get_db),
 ):
     """
     Return attendance records for a specific student.
-    RBAC:
-      • Student — can only see own records
-      • Parent  — can see linked children
-      • Teacher/Admin — can see anyone
+    Protected: student themselves, their teacher/educator, or admin.
     Optional query params: subject, status
     """
     role = _role(current_user)
@@ -323,24 +307,15 @@ def get_class_attendance(
     class_id: str,
     date: Optional[DateType] = Query(None, description="Filter to a specific date (YYYY-MM-DD)"),
     subject: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("educator", "admin")),
+    _member: User = Depends(require_class_member(param_name="class_id")),
     db: Session = Depends(get_db),
 ):
     """
     Return attendance records for an entire class, optionally filtered to a
     specific date and/or subject.
-    RBAC: teacher / admin only.
+    RBAC: teacher / admin only, must be class member.
     """
-    _require_teacher(current_user)
-    role = _role(current_user)
-    if role == "teacher":
-        teacher_class = str(current_user.class_id) if current_user.class_id else None
-        if teacher_class != class_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only access attendance for your own class.",
-            )
-
     query = db.query(Attendance).filter(Attendance.class_id == class_id)
     if date:
         query = query.filter(Attendance.date == date)
@@ -359,24 +334,15 @@ def get_class_analytics(
     month: int = Query(..., ge=1, le=12, description="Month number (1-12)"),
     year: int = Query(..., ge=2020, le=2100, description="4-digit year"),
     subject: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role("educator", "admin")),
+    _member: User = Depends(require_class_member(param_name="class_id")),
     db: Session = Depends(get_db),
 ):
     """
     Monthly attendance analytics for a class: percentage per student, per subject.
     Returns a sorted list so the teacher can spot students at risk (< 75 %).
-    RBAC: teacher / admin only.
+    RBAC: teacher / admin only, must be class member.
     """
-    _require_teacher(current_user)
-    role = _role(current_user)
-    if role == "teacher":
-        teacher_class = str(current_user.class_id) if current_user.class_id else None
-        if teacher_class != class_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only access attendance for your own class.",
-            )
-
     _, days_in_month = monthrange(year, month)
     from datetime import date as dt_date
     month_start = dt_date(year, month, 1)

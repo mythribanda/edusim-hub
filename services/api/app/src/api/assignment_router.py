@@ -21,7 +21,9 @@ from sqlalchemy.orm import Session
 
 from app.src.config.database import get_db
 from app.src.models.persistence import Assignment, Submission
+from app.src.models.user import User
 from app.src.services.persistence_service import require_user
+from middleware.rbac import require_role, check_class_membership, normalize_role
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +95,8 @@ def create_assignment(
     """
     user = require_user(authorization, db)
 
-    allowed_roles = {"teacher", "admin", "superadmin"}
-    if getattr(user, "role", None) not in allowed_roles:
+    role = normalize_role(getattr(user, "role", None))
+    if role not in ("educator", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only teachers and admins can create assignments.",
@@ -103,6 +105,12 @@ def create_assignment(
     module_uuid = _parse_uuid(body.module_id, "module_id")
     class_uuid = _parse_uuid(body.class_id, "class_id")
     due_dt = _parse_dt(body.due_date, "due_date")
+
+    if role == "educator" and not check_class_membership(user, class_uuid, db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only create assignments for classes you teach.",
+        )
 
     assignment = Assignment(
         module_id=module_uuid,
@@ -225,6 +233,12 @@ def get_all_assignments(
 ):
     """Return all assignments created by the logged-in teacher, newest first."""
     user = require_user(authorization, db)
+    role = normalize_role(getattr(user, "role", None))
+    if role not in ("educator", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers and admins can view teacher assignments.",
+        )
 
     assignments = (
         db.query(Assignment)
@@ -335,6 +349,12 @@ def get_batch_submissions(
     Gated to the teacher who created the assignments (or admins).
     """
     user = require_user(authorization, db)
+    role = normalize_role(getattr(user, "role", None))
+    if role not in ("educator", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers and admins can view submissions.",
+        )
     
     # Parse UUIDs
     try:
@@ -435,6 +455,12 @@ def get_assignment_submissions(
     Gated to the teacher who created the assignment (or admins).
     """
     user = require_user(authorization, db)
+    role = normalize_role(getattr(user, "role", None))
+    if role not in ("educator", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers and admins can view submissions.",
+        )
     assignment_uuid = _parse_uuid(assignment_id, "assignment_id")
 
     assignment = db.query(Assignment).filter(Assignment.id == assignment_uuid).first()
@@ -442,7 +468,7 @@ def get_assignment_submissions(
         raise HTTPException(status_code=404, detail="Assignment not found.")
 
     # Security check: creator only
-    if assignment.created_by != user.id and getattr(user, "role", None) != "admin":
+    if assignment.created_by != user.id and role != "admin":
         raise HTTPException(
             status_code=403,
             detail="You are not authorized to view submissions for this assignment.",
@@ -519,8 +545,8 @@ def grade_submission(
     user = require_user(authorization, db)
 
     # Gated to teacher/admin
-    allowed_roles = {"teacher", "admin", "superadmin"}
-    if getattr(user, "role", None) not in allowed_roles:
+    role = normalize_role(getattr(user, "role", None))
+    if role not in ("educator", "admin"):
         raise HTTPException(
             status_code=403,
             detail="Only teachers and admins can grade submissions.",

@@ -13,6 +13,7 @@ from app.src.config.database import get_db
 from app.src.models.persistence import ClassPost
 from app.src.models.user import User, UserRole, AgeTier
 from app.src.services.persistence_service import require_user
+from middleware.rbac import normalize_role, check_class_membership
 
 logger = logging.getLogger(__name__)
 
@@ -217,8 +218,8 @@ def create_class_post(
     user = require_user(authorization, db)
 
     # Gated to teacher/admin
-    allowed_roles = {UserRole.TEACHER, UserRole.ADMIN, UserRole.SUPERADMIN}
-    if user.role not in allowed_roles:
+    user_role = normalize_role(getattr(user, "role", None))
+    if user_role not in ("educator", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only teachers and administrators can post announcements.",
@@ -233,7 +234,7 @@ def create_class_post(
     class_uuid = _parse_uuid(body.class_id, "class_id")
 
     # Teachers must post to their own class
-    if user.role == UserRole.TEACHER and user.class_id != class_uuid:
+    if user_role == "educator" and not check_class_membership(user, class_uuid, db):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only post announcements to your own class.",
@@ -458,9 +459,10 @@ def delete_class_post(
         )
 
     # Authorization logic
+    user_role = normalize_role(getattr(user, "role", None))
     is_author = post.author_id == user.id
-    is_class_teacher = user.role == UserRole.TEACHER and user.class_id == post.class_id
-    is_admin = user.role in {UserRole.ADMIN, UserRole.SUPERADMIN}
+    is_class_teacher = user_role == "educator" and check_class_membership(user, post.class_id, db)
+    is_admin = user_role == "admin"
 
     if not (is_author or is_class_teacher or is_admin):
         raise HTTPException(

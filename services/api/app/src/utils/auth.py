@@ -4,13 +4,20 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 import jwt
 
-# SECRET_KEY for signing JWTs — loaded from JWT_SECRET env var.
-JWT_SECRET = os.getenv("JWT_SECRET")
-if not JWT_SECRET:
-    raise RuntimeError("JWT_SECRET not set")
-SECRET_KEY: str = JWT_SECRET
+# SECRET_KEY for signing JWTs — must be set in the environment; no insecure fallback.
+_jwt_secret = os.getenv("JWT_SECRET") or os.getenv("JWT_SECRET_KEY")
+if not _jwt_secret:
+    raise RuntimeError(
+        "Startup error: JWT_SECRET environment variable is missing. "
+        "Generate one with: python -c 'import secrets; print(secrets.token_hex(32))'"
+    )
+if len(_jwt_secret.strip()) < 32:
+    raise RuntimeError(
+        f"Startup error: JWT_SECRET is too short ({len(_jwt_secret.strip())} characters). "
+        "JWT_SECRET must be at least 32 characters long for cryptographic security."
+    )
+SECRET_KEY: str = _jwt_secret.strip()
 ALGORITHM = "HS256"
-
 
 # Access token expiry (e.g., 30 minutes)
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -38,9 +45,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create a signed JWT access token."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(hours=24)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire, "type": "access"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

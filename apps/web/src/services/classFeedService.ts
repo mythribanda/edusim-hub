@@ -5,7 +5,7 @@
  * Auth token is passed as a Bearer header.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8001";
 
 export interface Author {
   id: string;

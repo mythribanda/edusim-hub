@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.src.config.database import get_db
 from app.src.models.institution import Institution
+from app.src.models.user import User
+from middleware.rbac import require_role
 from pydantic import BaseModel
 from uuid import UUID
 
@@ -26,7 +28,11 @@ class InstitutionResponse(BaseModel):
         from_attributes = True
 
 @router.post("/", response_model=InstitutionResponse, status_code=status.HTTP_201_CREATED)
-def create_institution(institution_data: InstitutionCreate, db: Session = Depends(get_db)):
+def create_institution(
+    institution_data: InstitutionCreate,
+    current_user: User = Depends(require_role("admin")),
+    db: Session = Depends(get_db)
+):
     institution = Institution(
         name=institution_data.name,
         type=institution_data.type,

@@ -63,7 +63,7 @@ function TeacherFeedPage() {
 
       const fetchProfileBackup = async () => {
         try {
-          const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+          const apiBase = import.meta.env.VITE_API_URL ?? "http://localhost:8001";
           const res = await fetch(`${apiBase}/api/auth/profile`, {
             headers: { Authorization: `Bearer ${t}` },
           });

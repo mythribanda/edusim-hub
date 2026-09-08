@@ -7,54 +7,27 @@ from sqlalchemy.orm import Session
 from app.src.config.database import get_db
 from app.src.api.auth import get_current_user
 from app.src.models.user import User, UserRole
+from middleware.rbac import (
+    require_role,
+    require_class_member,
+    require_student_or_teacher,
+)
 
 logger = logging.getLogger("EduSim.reports")
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
 
-def can_access_student(current_user: User, student_id: UUID, db: Session) -> bool:
-    """
-    Helper function to centralize student access control:
-      - admin/superadmin can access all
-      - student can only access themselves
-      - educator (teacher) can only access students belonging to their class
-        (where User.educator_id == current_user.id)
-    """
-    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    role_str = role_str.lower()
-
-    if role_str in ("admin", "superadmin"):
-        return True
-
-    if role_str == "student":
-        return current_user.id == student_id
-
-    if role_str in ("teacher", "educator"):
-        student = db.query(User).filter(User.id == student_id, User.role == UserRole.STUDENT).first()
-        if not student:
-            return False
-        return student.educator_id == current_user.id
-
-    return False
-
-
 @router.get("/student/{student_id}")
 def get_student_report(
     student_id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_student_or_teacher("student_id")),
     db: Session = Depends(get_db),
 ):
     """
     Fetch a single student's report.
-    Access is strictly scoped by role.
+    Protected: student themselves or their authorized teacher/admin.
     """
-    if not can_access_student(current_user, student_id, db):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
-        )
-
     student = db.query(User).filter(User.id == student_id).first()
     if not student:
         raise HTTPException(
@@ -74,6 +47,99 @@ def get_student_report(
             "tutor_questions_asked": 18
         }
     }
+
+
+@router.get("/student/{student_id}/events")
+def get_student_events(
+    student_id: UUID,
+    page: int = 1,
+    limit: int = 20,
+    current_user: User = Depends(require_student_or_teacher("student_id")),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns a paginated list of session events for a specific student.
+    Protected: student themselves or their authorized teacher/admin.
+    """
+    from app.src.models.persistence import SessionEvent
+    student = db.query(User).filter(User.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found.")
+
+    offset = (page - 1) * limit
+    total = db.query(SessionEvent).filter(SessionEvent.student_id == student_id).count()
+    events = (
+        db.query(SessionEvent)
+        .filter(SessionEvent.student_id == student_id)
+        .order_by(SessionEvent.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    serialized_events = []
+    for e in events:
+        serialized_events.append({
+            "id": str(e.id),
+            "student_id": str(e.student_id),
+            "module_id": str(e.module_id),
+            "module_title": "Interactive Physics Module",
+            "event_type": e.event_type,
+            "payload": e.payload,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        })
+
+    return {
+        "events": serialized_events,
+        "total": total,
+        "page": page,
+        "limit": limit
+    }
+
+
+@router.get("/class/{class_id}/events")
+def get_class_events(
+    class_id: str,
+    page: int = 1,
+    limit: int = 50,
+    current_user: User = Depends(require_role("educator", "admin")),
+    _member: User = Depends(require_class_member(param_name="class_id")),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns session events for all students in a class.
+    Protected: class teacher / educator or admin.
+    """
+    from app.src.models.persistence import SessionEvent
+    students = db.query(User).filter(User.class_id == class_id).all()
+    student_ids = [s.id for s in students]
+
+    if not student_ids:
+        return {"events": [], "total": 0, "page": page, "limit": limit}
+
+    offset = (page - 1) * limit
+    total = db.query(SessionEvent).filter(SessionEvent.student_id.in_(student_ids)).count()
+    events = (
+        db.query(SessionEvent)
+        .filter(SessionEvent.student_id.in_(student_ids))
+        .order_by(SessionEvent.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    serialized = []
+    for e in events:
+        serialized.append({
+            "id": str(e.id),
+            "student_id": str(e.student_id),
+            "module_id": str(e.module_id),
+            "event_type": e.event_type,
+            "payload": e.payload,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        })
+
+    return {"events": serialized, "total": total, "page": page, "limit": limit}
 
 
 @router.get("/analytics")

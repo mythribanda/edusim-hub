@@ -1,18 +1,12 @@
 import uuid
-import os
-import logging
-from datetime import datetime, timezone
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.src.config.database import get_db
 from app.src.models.persistence import CurriculumClass, Subject, Chapter, Topic
-from app.src.api.auth import get_current_user
 from app.src.models.user import User
-
-logger = logging.getLogger("EduSim.curriculum")
-
+from middleware.rbac import require_role
 
 router = APIRouter(prefix="/curriculum", tags=["Curriculum"])
 
@@ -48,6 +42,29 @@ def get_topics(chapter_id: uuid.UUID, db: Session = Depends(get_db)):
         if not chap:
             raise HTTPException(status_code=404, detail="Chapter not found")
     return topics
+
+@router.get("/all-topics")
+def get_all_topics(db: Session = Depends(get_db)):
+    """Return all topics flattened with subject and chapter info for easy dropdown selection."""
+    topics = (
+        db.query(Topic, Chapter.name.label("chapter_name"), Subject.name.label("subject_name"))
+        .join(Chapter, Topic.chapter_id == Chapter.id)
+        .join(Subject, Chapter.subject_id == Subject.id)
+        .order_by(Subject.name.asc(), Chapter.name.asc(), Topic.display_order.asc())
+        .all()
+    )
+    result = []
+    for t, ch_name, sub_name in topics:
+        result.append({
+            "id": str(t.id),
+            "name": t.name,
+            "chapter_name": ch_name,
+            "subject_name": sub_name,
+            "has_simulation": getattr(t, "has_simulation", False),
+            "simulation_route": getattr(t, "simulation_route", None),
+        })
+    return result
+
 
 @router.get("/search")
 def search_curriculum(q: str, db: Session = Depends(get_db)):
@@ -109,38 +126,9 @@ class ClassPayload(BaseModel):
 @router.post("/seed")
 def seed_curriculum(
     payload: List[ClassPayload],
+    current_user: User = Depends(require_role("admin")),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    # 1. Environment check
-    if os.getenv("ENV") != "development":
-        logger.warning(
-            "Blocked attempt to seed curriculum outside development env by %s",
-            current_user.email
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Curriculum seeding is only allowed in the development environment."
-        )
-
-    # 2. Role check (only admin/superadmin role can call it)
-    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    role_str = role_str.lower()
-    if role_str not in ("admin", "superadmin"):
-        logger.warning(
-            "Unauthorized seed attempt by user %s with role %s",
-            current_user.email, role_str
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden. Only administrators can seed the curriculum."
-        )
-
-    # 3. Log attempt
-    logger.info(
-        "Curriculum seed initiated by user %s (role: %s) at %s",
-        current_user.email, role_str, datetime.now(timezone.utc).isoformat()
-    )
     for c_order, c in enumerate(payload):
         # Upsert Class
         stmt_class = insert(CurriculumClass).values({

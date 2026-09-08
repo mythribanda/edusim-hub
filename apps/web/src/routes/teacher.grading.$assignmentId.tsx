@@ -13,7 +13,7 @@ import {
   FileCode,
 } from "lucide-react";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8001";
 
 interface Submission {
   submission_id: string;

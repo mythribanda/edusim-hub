@@ -27,7 +27,7 @@ class TimestampMixin:
 
 
 class CurriculumClass(Base, TimestampMixin):
-    __tablename__ = "classes"
+    __tablename__ = "curriculum_classes"
 
     id = Column(Integer, primary_key=True)  # Using Integer to match TS class ID
     name = Column(String(100), nullable=False)
@@ -39,7 +39,7 @@ class Subject(Base, TimestampMixin):
     __tablename__ = "subjects"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    class_id = Column(Integer, ForeignKey("classes.id", ondelete="CASCADE"), nullable=False, index=True)
+    class_id = Column(Integer, ForeignKey("curriculum_classes.id", ondelete="CASCADE"), nullable=False, index=True)
     code = Column(String(100), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)

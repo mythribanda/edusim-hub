@@ -17,3 +17,6 @@ from app.src.models.persistence import (
     ParentStudent,
     WeeklyDigestLog,
 )
+from app.src.models.school import Class, TeacherClassSubject, StudentEnrollment, StudentTopicMastery
+
+

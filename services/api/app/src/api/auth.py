@@ -367,6 +367,10 @@ def login(request: LoginRequest, http_request: Request, db: Session = Depends(ge
 @auth_router.post("/google", response_model=TokenResponse)
 def google_login(request: GoogleLoginRequest, http_request: Request, db: Session = Depends(get_db)):
     """Logs in or registers user using a Google ID token."""
+    # 0. Validate Supabase settings
+    from app.src.config.settings import validate_supabase_url
+    validate_supabase_url()
+
     # 1. Verify the ID Token
     if not GOOGLE_CLIENT_ID or GOOGLE_CLIENT_ID == "your-google-client-id-here.apps.googleusercontent.com":
         raise HTTPException(
@@ -486,6 +490,10 @@ def google_callback(
     Exchanges authorization code for access token, signs in the user,
     and redirects back to frontend with the JWT token in URL query parameter.
     """
+    # 0. Validate Supabase settings
+    from app.src.config.settings import validate_supabase_url
+    validate_supabase_url()
+
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8080")
 
     # Exchanging code for Google tokens
@@ -867,31 +875,45 @@ def get_profile_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    from middleware.rbac import normalize_role
+    role_str = normalize_role(current_user.role)
     target_user = current_user
     
-    if role_str == "parent":
-        if not student_id:
-            raise HTTPException(
-                status_code=400,
-                detail="student_id query parameter is required for parent accounts."
-            )
-        # Check link
-        from app.src.models.persistence import ParentStudent
-        link = db.query(ParentStudent).filter(
-            ParentStudent.parent_id == current_user.id,
-            ParentStudent.student_id == student_id
-        ).first()
-        if not link:
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied. This student is not linked to your parent account."
-            )
-        target_user = db.query(User).filter(User.id == student_id).first()
-        if not target_user:
-            raise HTTPException(status_code=404, detail="Student user not found.")
-    elif role_str == "student":
-        if student_id and student_id != current_user.id:
+    if student_id and student_id != current_user.id:
+        if role_str == "admin":
+            target_user = db.query(User).filter(User.id == student_id).first()
+            if not target_user:
+                raise HTTPException(status_code=404, detail="Student user not found.")
+        elif role_str == "educator":
+            student = db.query(User).filter(User.id == student_id).first()
+            if not student:
+                raise HTTPException(status_code=404, detail="Student user not found.")
+            is_teacher = False
+            if getattr(student, "educator_id", None) and student.educator_id == current_user.id:
+                is_teacher = True
+            elif getattr(current_user, "class_id", None) and getattr(student, "class_id", None) and current_user.class_id == student.class_id:
+                is_teacher = True
+            if not is_teacher:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied. You are not authorized to view this student's stats."
+                )
+            target_user = student
+        elif role_str == "parent":
+            from app.src.models.persistence import ParentStudent
+            link = db.query(ParentStudent).filter(
+                ParentStudent.parent_id == current_user.id,
+                ParentStudent.student_id == student_id
+            ).first()
+            if not link:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied. This student is not linked to your parent account."
+                )
+            target_user = db.query(User).filter(User.id == student_id).first()
+            if not target_user:
+                raise HTTPException(status_code=404, detail="Student user not found.")
+        else:
             raise HTTPException(
                 status_code=403,
                 detail="Access denied. Students can only view their own stats."

@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.src.config.database import get_db
-from app.src.models.user import User, UserRole
 from app.src.models.persistence import (
     FormulaHistory,
     SimulationHistory,
@@ -141,12 +140,6 @@ class SandboxEventRequest(BaseModel):
     payload_json: Optional[Any] = None
 
 
-class SessionEventRequest(BaseModel):
-    module_id: str
-    event_type: str
-    payload: Optional[dict[str, Any]] = None
-
-
 class SearchHistoryRequest(BaseModel):
     query: str
     scope: Optional[str] = None
@@ -224,86 +217,42 @@ class RefreshTokenRecordRequest(BaseModel):
     metadata: Optional[dict[str, Any]] = None
 
 
-def resolve_target_student(
-    current_user: User,
-    student_id: Optional[uuid.UUID],
-    db: Session
-) -> User:
-    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role_str == "parent":
-        if not student_id:
-            raise HTTPException(
-                status_code=400,
-                detail="student_id query parameter is required for parent accounts."
-            )
-        # Check link
-        from app.src.models.persistence import ParentStudent
-        link = db.query(ParentStudent).filter(
-            ParentStudent.parent_id == current_user.id,
-            ParentStudent.student_id == student_id
-        ).first()
-        if not link:
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied. This student is not linked to your parent account."
-            )
-        student = db.query(User).filter(User.id == student_id).first()
-        if not student:
-            raise HTTPException(status_code=404, detail="Student user not found.")
-        return student
-    else:
-        if student_id and student_id != current_user.id:
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied. Students can only access their own data."
-            )
-        return current_user
-
-
 @persistence_router.get("/snapshot")
 def get_snapshot(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
-    return get_persistence_snapshot(db, user=target_user)
+    return get_persistence_snapshot(db, user=user)
 
 
 @persistence_router.get("/state")
 def load_state(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
-    return get_state_payload(db, user=target_user)
+    return get_state_payload(db, user=user)
 
 
 @persistence_router.get("/tutor/history")
 def load_tutor_history_endpoint(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
-    return list_tutor_history(db, user=target_user)
+    return list_tutor_history(db, user=user)
 
 
 @persistence_router.get("/tutor/sessions")
 def get_tutor_sessions_endpoint(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
     from app.src.repositories.persistence_repository import PersistenceRepository
     repo = PersistenceRepository(db)
-    sessions = repo.list_tutor_sessions(target_user.id)
+    sessions = repo.list_tutor_sessions(user.id)
     return {"success": True, "sessions": sessions}
 
 
@@ -318,31 +267,16 @@ def get_tutor_session_endpoint(
         sid = uuid.UUID(session_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid session_id UUID format")
-        
-    role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
-    if role_str == "parent":
-        first_msg = db.query(ChatHistory).filter(ChatHistory.session_id == sid).first()
-        if first_msg:
-            from app.src.models.persistence import ParentStudent
-            link = db.query(ParentStudent).filter(
-                ParentStudent.parent_id == user.id,
-                ParentStudent.student_id == first_msg.user_id
-            ).first()
-            if not link:
-                raise HTTPException(
-                    status_code=403,
-                    detail="Access denied. This session does not belong to your linked child."
-                )
-    elif role_str == "student":
-        first_msg = db.query(ChatHistory).filter(ChatHistory.session_id == sid).first()
-        if first_msg and first_msg.user_id != user.id:
-            raise HTTPException(
-                status_code=403,
-                detail="Access denied. You can only view your own sessions."
-            )
-            
+    
     from app.src.services.persistence_service import get_tutor_conversation_payload
     payload = get_tutor_conversation_payload(db, sid)
+    session_owner = payload.get("user_id")
+    if session_owner and str(session_owner) != str(user.id):
+        if getattr(user, "role", None) not in ("admin", "educator", "teacher"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: You do not own this tutor session."
+            )
     return {"success": True, "session": payload}
 
 
@@ -371,46 +305,38 @@ def delete_tutor_session_endpoint(
 
 @persistence_router.get("/curriculum/history")
 def load_curriculum_history_endpoint(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
-    return list_curriculum_history(db, user=target_user)
+    return list_curriculum_history(db, user=user)
 
 
 @persistence_router.get("/formula/history")
 def load_formula_history_endpoint(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
-    return list_formula_history(db, user=target_user)
+    return list_formula_history(db, user=user)
 
 
 @persistence_router.get("/sandbox/history")
 def load_sandbox_history_endpoint(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
-    return list_sandbox_history(db, user=target_user)
+    return list_sandbox_history(db, user=user)
 
 
 @persistence_router.get("/dashboard/history")
 def load_dashboard_history_endpoint(
-    student_id: Optional[uuid.UUID] = None,
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    target_user = resolve_target_student(user, student_id, db)
-    return list_dashboard_history(db, user=target_user)
+    return list_dashboard_history(db, user=user)
 
 
 @persistence_router.post("/activity")
@@ -719,7 +645,11 @@ def load_formula_calculation(
     db: Session = Depends(get_db),
 ):
     user = require_user(authorization, db)
-    calculation = db.query(FormulaHistory).filter(FormulaHistory.id == calculation_id, FormulaHistory.user_id == user.id).first()
+    try:
+        cid = uuid.UUID(calculation_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid calculation_id UUID format")
+    calculation = db.query(FormulaHistory).filter(FormulaHistory.id == cid, FormulaHistory.user_id == user.id).first()
     if not calculation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Formula calculation not found")
     return {"success": True, "calculation": calculation}
@@ -1020,10 +950,16 @@ def delete_simulation_history(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# POST /session-event  — write one row into session_events
+# POST /session-event  — record one row in session_events
 # ─────────────────────────────────────────────────────────────────────────────
 
 VALID_EVENT_TYPES = {"started", "answered", "completed", "asked_tutor"}
+
+
+class SessionEventRequest(BaseModel):
+    module_id: Optional[str] = "00000000-0000-0000-0000-000000000000"
+    event_type: str
+    payload: Optional[dict] = None
 
 
 @persistence_router.post("/session-event")
@@ -1036,7 +972,6 @@ def create_session_event(
     Insert one row into session_events.
     Called fire-and-forget from the frontend emitEvent() helper.
     """
-    # Validate event_type against the canonical set
     if request.event_type not in VALID_EVENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1045,7 +980,6 @@ def create_session_event(
 
     user = require_user(authorization, db)
 
-    # Parse module_id — accept UUID strings; fall back to nil UUID
     try:
         module_uuid = uuid.UUID(request.module_id)
     except (ValueError, AttributeError):
@@ -1061,18 +995,18 @@ def create_session_event(
     try:
         db.commit()
         db.refresh(event)
-        logger.info(
-            "[session_events] Recorded '%s' for user=%s module=%s",
-            request.event_type,
-            user.id,
-            module_uuid,
-        )
-        return {"success": True, "event_id": str(event.id)}
-    except Exception as exc:
+        return {
+            "success": True,
+            "event_id": str(event.id),
+            "event_type": event.event_type,
+            "created_at": event.created_at.isoformat() if event.created_at else None,
+        }
+    except Exception as e:
         db.rollback()
-        logger.warning("[session_events] Failed to insert row: %s", exc)
+        logger.error(f"[Database] Failed to write session_event: {e}")
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": "Failed to record session event."},
         )
+
